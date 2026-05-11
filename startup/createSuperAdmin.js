@@ -2,6 +2,7 @@ const prisma = require("./db");
 require("colors");
 const asyncHandler = require("express-async-handler");
 const { SUPER_ADMIN } = require("../utils/constants");
+const Auth = require("../utils/auth");
 
 const createSuperAdmin = asyncHandler(async () => {
   const admin = await prisma.admin.findFirst({where: {isSuperAdmin: true }})
@@ -12,7 +13,7 @@ const createSuperAdmin = asyncHandler(async () => {
         lastName: "Admin",
         role: SUPER_ADMIN,
         email: process.env.SUPER_ADMIN_EMAIL,
-        password: process.env.SUPER_ADMIN_PASSWORD,
+        password: await Auth.hashPassword(process.env.SUPER_ADMIN_PASSWORD),
         isVerified: true,
         isSuperAdmin: true,
       } 
