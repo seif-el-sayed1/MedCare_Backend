@@ -19,10 +19,7 @@ class ApiFeatures {
 
     const searchFields = {
       User:         ["firstName", "lastName", "email", "phone"],
-      Message:      ["content"],
-      Doctor:       ["fullName", "email"],
-      Notification: ["body"],
-      Hospital:     ["hospitalName"]
+      Doctor:       ["firstName", "lastName", "email"],
     };
 
     const fields = searchFields[this.modelName];
@@ -37,48 +34,73 @@ class ApiFeatures {
   }
 
   filter() {
-    const queryObj = { ...this.queryString };
+      const queryObj = { ...this.queryString };
 
-    // Remove common fields
-    const removeFields = ["search", "page", "limit", "sort", "select"];
-    removeFields.forEach((key) => delete queryObj[key]);
+      // Remove common fields
+      const removeFields = ["search", "page", "limit", "sort", "select"];
+      removeFields.forEach((key) => delete queryObj[key]);
 
-    const where = { ...this.prismaArgs.where };
+      const where = { ...this.prismaArgs.where };
 
-    // Handle date range
-    if (queryObj.startDate || queryObj.endDate) {
-      where.createdAt = {};
-      if (queryObj.startDate) {
-        const start = new Date(queryObj.startDate);
-        if (!isNaN(start)) where.createdAt.gte = start;
-        delete queryObj.startDate;
+      // Helper: convert values types
+      const parseValue = (value) => {
+          if (value === "true") return true;
+          if (value === "false") return false;
+
+          if (!isNaN(value) && value !== "") return Number(value);
+
+          return value;
+      };
+
+      // Handle date range separately
+      if (queryObj.startDate || queryObj.endDate) {
+          where.createdAt = {};
+
+          if (queryObj.startDate) {
+              const start = new Date(queryObj.startDate);
+              if (!isNaN(start)) where.createdAt.gte = start;
+              delete queryObj.startDate;
+          }
+
+          if (queryObj.endDate) {
+              const end = new Date(queryObj.endDate);
+              if (!isNaN(end)) where.createdAt.lte = end;
+              delete queryObj.endDate;
+          }
+
+          if (Object.keys(where.createdAt).length === 0) {
+              delete where.createdAt;
+          }
       }
-      if (queryObj.endDate) {
-        const end = new Date(queryObj.endDate);
-        if (!isNaN(end)) where.createdAt.lte = end;
-        delete queryObj.endDate;
-      }
-      if (Object.keys(where.createdAt).length === 0) delete where.createdAt;
-    }
 
-    // Convert operators gt, gte, lt, lte for non-date fields
-    const operators = ["gt", "gte", "lt", "lte"];
-    for (const key in queryObj) {
-      if (!queryObj[key] || typeof queryObj[key] !== "object") {
-        where[key] = queryObj[key];
-        continue;
-      }
-      where[key] = {};
-      for (const op of operators) {
-        if (queryObj[key][op] !== undefined) {
-          where[key][op] = queryObj[key][op];
-        }
-      }
-    }
+      // Operators support
+      const operators = ["gt", "gte", "lt", "lte"];
 
-    this.prismaArgs.where = where;
+      for (const key in queryObj) {
 
-    return this;
+          // If it's NOT an object → normal field
+          if (
+              !queryObj[key] ||
+              typeof queryObj[key] !== "object" ||
+              Array.isArray(queryObj[key])
+          ) {
+              where[key] = parseValue(queryObj[key]);
+              continue;
+          }
+
+          // If it's an object → operators (e.g price[gte]=100)
+          where[key] = {};
+
+          for (const op of operators) {
+              if (queryObj[key][op] !== undefined) {
+                  where[key][op] = parseValue(queryObj[key][op]);
+              }
+          }
+      }
+
+      this.prismaArgs.where = where;
+
+      return this;
   }
 
   sort() {
