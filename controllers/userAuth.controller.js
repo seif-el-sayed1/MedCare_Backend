@@ -291,6 +291,49 @@ class UserController {
     });
   });
 
+  //@desc  Verify OTP
+  //@route POST /user/auth/verify-otp
+  //@access Private
+  verifyOtp = asyncHandler(async (req, res, next) => {
+    const lang = req.headers.lang || "en";
+
+    const hashedCode = hashCode(req.body.otp);
+    const user = await prisma.user.findFirst(
+      {
+        where: {
+          verificationCode: hashedCode,
+          verificationCodeExp: { gt: new Date() }
+        }
+      }
+    );
+
+    if (!user)
+      return next(new ApiError(translate("OTP isn't found!", lang), 403));
+
+    let token = { token: user.token, tokenExpDate: user.tokenExpDate };
+
+    if (!token.token) token = await Auth.generateToken(user.id, user.role);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isVerified: true,
+        verificationCode: null,
+        verificationCodeExp: null,
+        phone: user.phone || undefined,
+        email: user.email || undefined,
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Account verified successfully",
+      data: {
+        ...this.#getUsersData(user, lang),
+        ...token
+      }
+    });
+  });
 
 }
 
