@@ -335,6 +335,41 @@ class UserController {
     });
   });
 
+  //@desc  Send OTP
+  //@route POST /user/auth/send-otp
+  //@access Private
+  sendOtp = asyncHandler(async (req, res, next) => {
+    let { email } = req.body;
+    const lang = req.headers.lang || "en";
+
+    const user = await prisma.user.findFirst({
+      where: {
+        AND: [{ isVerified: false }, { email }]
+      }
+    });
+
+    if (!user) return next(new ApiError(translate("User Not Found!", lang), 404));
+
+    const { code, hashedCode } = await generateCode();
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        verificationCode: hashedCode,
+        verificationCodeExp: new Date(Date.now() + 10 * 60 * 1000)
+      }
+    });
+
+    if (email) {
+      await EmailController.userVerificationEmail(code, email);
+      return res.status(200).json({
+        success: true,
+        message: "Verification OTP is sent to your Email"
+      });
+    }
+
+  });
+
 }
 
 module.exports = new UserController();
