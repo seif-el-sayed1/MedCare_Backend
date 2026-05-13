@@ -222,6 +222,46 @@ class AdminAuthController{
 
   })
 
+  // @desc    Forgot admin account password
+  // @route   PATCH /admin/auth/resetPassword
+  // @access  Private
+  adminResetPassword = asyncHandler(async (req, res, next) => {
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(req.params.token)
+      .digest("hex");
+
+    const admin = await prisma.admin.findFirst({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!admin) return next(new ApiError("Token Not Found!", 404));
+
+    const { password } = req.body;
+    const hashedPassword = await Auth.hashPassword(password);
+
+    await prisma.admin.update({
+      where: { id: admin.id },
+      data: {
+        password: hashedPassword,
+        passwordChangedAt: new Date(),
+        verificationToken: null,
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Password is reset successfully, please login again...",
+    });
+  });
+
 }
 
 
