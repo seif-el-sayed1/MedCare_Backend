@@ -130,6 +130,38 @@ class AdminAuthController{
         tokenExpDate: tokenData.tokenExpDate
     });
   });
+
+  // @desc    Change logged in admin password
+  // @route   PATCH /admin/auth/changePassword
+  // @access  Private
+  adminChangePassword = asyncHandler(async (req, res,next) => {
+    const admin = req.user
+    const { currentPassword, newPassword } = req.body;
+    const lang = req.headers.lang || "en"
+
+    //compare current password
+    if (!await Auth.comparePassword(admin, currentPassword)){
+      return next(new ApiError(translate("Incorrect current password", lang), 400))
+    }
+    //new password must be different from the current password
+    if (await Auth.comparePassword(admin, newPassword)){
+      return next(new ApiError(translate("New password must be different from the current password", lang), 400));
+    }
+
+    await prisma.admin.update({
+      where: {id: admin.id},
+      data: {
+        password: await Auth.hashPassword(req.body.newPassword),
+        passwordChangedAt: new Date()  
+      }
+    })
+
+    res.status(200).json({
+      success: true,
+      message: "Password updated successfully"
+    });
+  })
+
 }
 
 
