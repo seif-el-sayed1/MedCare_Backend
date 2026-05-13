@@ -162,6 +162,34 @@ class AdminAuthController{
     });
   })
 
+  // @desc    Account verification code
+  // @route   POST /admin/auth/verifyAccount
+  // @access  Public
+  verifyAccount = asyncHandler(async (req, res, next) => {
+    const admin = req.user
+    const { password } = req.body
+    const lang = req.headers.lang || "en"
+
+    // Check if admin is already verified
+    if (admin.isVerified) return next(new ApiError(translate("This account is already verified", lang), 400));
+    
+    // Update admin document only if not already verified
+    await prisma.admin.update({
+      where: {id: admin.id},
+      data: {
+        isVerified: true,
+        password: await Auth.hashPassword(password),
+        passwordChangedAt: new Date()
+      }
+    })
+    
+    res.status(200).json({
+      success: true,
+      message: "Account verified successfully"
+    });
+  })
+
+
 }
 
 
