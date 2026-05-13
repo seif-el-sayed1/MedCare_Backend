@@ -265,6 +265,33 @@ class UserController {
     });
   });
 
+
+  // // @desc    Update logged user password
+  // // @route   PATCH /user/auth/updatePassword
+  // // @access  Private
+  updateLoggedUserPassword = asyncHandler(async (req, res, next) => {
+    const lang = req.headers.lang || "en";
+
+    if (!(await Auth.comparePassword(req.user, req.body.currentPassword)))
+      return next(new ApiError(translate("Incorrect password", lang), 401));
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        password: await Auth.hashPassword(req.body.newPassword),
+        passwordChangedAt: new Date()
+      }
+    });
+
+    if (!user) return next(new ApiError("User not found", 404));
+
+    res.status(200).json({
+      success: true,
+      message: "Password updated successfully, please login again"
+    });
+  });
+
+
 }
 
 module.exports = new UserController();
