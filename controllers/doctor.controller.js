@@ -118,6 +118,41 @@ class DoctorController {
         });
     });
 
+    //@desc toggle delete doctor
+    //@route PATCH /doctors/:id
+    //@access private
+    /**
+     * This endpoint performs a soft delete for a doctor.
+     * The doctor will be permanently (hard) deleted after 15 days
+     * if it remains in a soft deleted state.
+    */
+    toggleDeleteDoctor = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+
+        const existDoctor = await prisma.doctor.findUnique({
+            where: { id }
+        });
+
+        if (!existDoctor) {
+            return next(new ApiError("Doctor not found", 404));
+        }
+
+        const doctor = await prisma.doctor.update({
+            where: { id },
+            data: {
+                isDeleted: !existDoctor.isDeleted
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: doctor.isDeleted
+                ? "Doctor deleted successfully"
+                : "Doctor restored successfully",
+            data: doctor
+        });
+    });
+
 
 }
 
