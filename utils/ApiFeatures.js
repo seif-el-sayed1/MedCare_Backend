@@ -154,20 +154,23 @@ class ApiFeatures {
     return this;
   }
 
-  async execute() {
-    const args = {
-      where:   this.prismaArgs.where,
-      orderBy: this.prismaArgs.orderBy,
-      skip:    this.prismaArgs.skip,
-      take:    this.prismaArgs.take
-    };
+  async execute(extraArgs = {}) {
 
-    // cleanResponse — omit updatedAt
-    if (this._cleanResponse) {
-      args.omit = { updatedAt: true };
-    }
+      const args = {
+          where: this.prismaArgs.where,
+          orderBy: this.prismaArgs.orderBy,
+          skip: this.prismaArgs.skip,
+          take: this.prismaArgs.take,
+          ...this.extraArgs,
+          ...extraArgs
+      };
 
-    return this.model.findMany(args);
+      // cleanResponse — omit updatedAt
+      if (this._cleanResponse) {
+          args.omit = { updatedAt: true };
+      }
+
+      return this.model.findMany(args);
   }
 }
 
