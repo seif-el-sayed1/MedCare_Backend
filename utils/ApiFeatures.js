@@ -34,74 +34,85 @@ class ApiFeatures {
   }
 
   filter() {
-      const queryObj = { ...this.queryString };
+    const queryObj = { ...this.queryString };
+    const removeFields = ["search", "page", "limit", "sort", "select"];
+    removeFields.forEach((key) => delete queryObj[key]);
 
-      // Remove common fields
-      const removeFields = ["search", "page", "limit", "sort", "select"];
-      removeFields.forEach((key) => delete queryObj[key]);
+    const where = { ...this.prismaArgs.where };
 
-      const where = { ...this.prismaArgs.where };
+    const parseValue = (value) => {
+        if (value === "true") return true;
+        if (value === "false") return false;
+        if (!isNaN(value) && value !== "") return Number(value);
+        return value;
+    };
 
-      // Helper: convert values types
-      const parseValue = (value) => {
-          if (value === "true") return true;
-          if (value === "false") return false;
+    // ━━━ Relation Search ━━━
+    const relationFields = {
+        doctorName: (value) => ({
+            doctor: {
+                OR: [
+                    { firstName: { contains: value, mode: "insensitive" } },
+                    { lastName: { contains: value, mode: "insensitive" } }
+                ]
+            }
+        }),
+        userName: (value) => ({
+            user: {
+                OR: [
+                    { firstName: { contains: value, mode: "insensitive" } },
+                    { lastName: { contains: value, mode: "insensitive" } }
+                ]
+            }
+        })
+    }
 
-          if (!isNaN(value) && value !== "") return Number(value);
+    for (const key in relationFields) {
+        if (queryObj[key]) {
+            Object.assign(where, relationFields[key](queryObj[key]))
+            delete queryObj[key]
+        }
+    }
 
-          return value;
-      };
+    // ━━━ Date Range ━━━
+    if (queryObj.startDate || queryObj.endDate) {
+        where.createdAt = {}
+        if (queryObj.startDate) {
+            const start = new Date(queryObj.startDate)
+            if (!isNaN(start)) where.createdAt.gte = start
+            delete queryObj.startDate
+        }
+        if (queryObj.endDate) {
+            const end = new Date(queryObj.endDate)
+            if (!isNaN(end)) where.createdAt.lte = end
+            delete queryObj.endDate
+        }
+        if (Object.keys(where.createdAt).length === 0) delete where.createdAt
+    }
 
-      // Handle date range separately
-      if (queryObj.startDate || queryObj.endDate) {
-          where.createdAt = {};
+    // ━━━ Operators ━━━
+    const operators = ["gt", "gte", "lt", "lte"]
 
-          if (queryObj.startDate) {
-              const start = new Date(queryObj.startDate);
-              if (!isNaN(start)) where.createdAt.gte = start;
-              delete queryObj.startDate;
-          }
+    for (const key in queryObj) {
+        if (
+            !queryObj[key] ||
+            typeof queryObj[key] !== "object" ||
+            Array.isArray(queryObj[key])
+        ) {
+            where[key] = parseValue(queryObj[key])
+            continue
+        }
+        where[key] = {}
+        for (const op of operators) {
+            if (queryObj[key][op] !== undefined) {
+                where[key][op] = parseValue(queryObj[key][op])
+            }
+        }
+    }
 
-          if (queryObj.endDate) {
-              const end = new Date(queryObj.endDate);
-              if (!isNaN(end)) where.createdAt.lte = end;
-              delete queryObj.endDate;
-          }
-
-          if (Object.keys(where.createdAt).length === 0) {
-              delete where.createdAt;
-          }
-      }
-
-      // Operators support
-      const operators = ["gt", "gte", "lt", "lte"];
-
-      for (const key in queryObj) {
-
-          // If it's NOT an object → normal field
-          if (
-              !queryObj[key] ||
-              typeof queryObj[key] !== "object" ||
-              Array.isArray(queryObj[key])
-          ) {
-              where[key] = parseValue(queryObj[key]);
-              continue;
-          }
-
-          // If it's an object → operators (e.g price[gte]=100)
-          where[key] = {};
-
-          for (const op of operators) {
-              if (queryObj[key][op] !== undefined) {
-                  where[key][op] = parseValue(queryObj[key][op]);
-              }
-          }
-      }
-
-      this.prismaArgs.where = where;
-
-      return this;
-  }
+    this.prismaArgs.where = where
+    return this
+}
 
   sort() {
     const sortType = this.queryString.sort;
