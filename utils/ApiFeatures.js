@@ -14,23 +14,35 @@ class ApiFeatures {
   }
 
   search() {
-    const keyword = this.queryString.search;
-    if (!keyword) return this;
+      const keyword = this.queryString.search;
+      if (!keyword) return this;
 
-    const searchFields = {
-      User:         ["firstName", "lastName", "email", "phone"],
-      Doctor:       ["firstName", "lastName", "email"],
-    };
+      const searchFields = {
+          User: ["firstName", "lastName", "email", "phone"],
+          Doctor: ["firstName", "lastName", "email"],
+          Appointment: ["appointmentCode"],
+      };
 
-    const fields = searchFields[this.modelName];
-    if (!fields) return this;
+      const relationSearch = {
+          Appointment: [
+              { doctor: { firstName: { contains: keyword, mode: "insensitive" } } },
+              { doctor: { lastName: { contains: keyword, mode: "insensitive" } } },
+              { user: { firstName: { contains: keyword, mode: "insensitive" } } },
+              { user: { lastName: { contains: keyword, mode: "insensitive" } } },
+          ]
+      }
 
-    // Prisma OR conditions
-    this.prismaArgs.where.OR = fields.map((field) => ({
-      [field]: { contains: keyword, mode: "insensitive" }
-    }));
+      const fields = searchFields[this.modelName] || []
+      const relations = relationSearch[this.modelName] || []
 
-    return this;
+      this.prismaArgs.where.OR = [
+          ...fields.map((field) => ({
+              [field]: { contains: keyword, mode: "insensitive" }
+          })),
+          ...relations
+      ]
+
+      return this
   }
 
   filter() {
