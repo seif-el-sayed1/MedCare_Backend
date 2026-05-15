@@ -64,14 +64,20 @@ class ApiFeatures {
         doctorName: (value) => ({
             doctor: {
                 OR: [
+                    {id: { contains: value, mode: "insensitive" } },
+                    {email: { contains: value, mode: "insensitive" } },
+                    {phone: { contains: value, mode: "insensitive" } },
                     { firstName: { contains: value, mode: "insensitive" } },
                     { lastName: { contains: value, mode: "insensitive" } }
                 ]
             }
         }),
-        userName: (value) => ({
+        user: (value) => ({
             user: {
                 OR: [
+                    {id: { contains: value, mode: "insensitive" } },
+                    {email: { contains: value, mode: "insensitive" } },
+                    {phone: { contains: value, mode: "insensitive" } },
                     { firstName: { contains: value, mode: "insensitive" } },
                     { lastName: { contains: value, mode: "insensitive" } }
                 ]
