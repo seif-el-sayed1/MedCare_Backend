@@ -44,6 +44,41 @@ class WorkingHoursController {
             data: doctor
         });
     });
+
+    //@desc update working hours for doctor
+    //@route patch /doctors/:id/working-hours/:whId
+    //@access private
+    updateWorkingHours = asyncHandler(async (req, res, next) => {
+        const { id, whId } = req.params;
+
+        // check working hours exists for this doctor
+        const existingWorkingHours = await prisma.workingHours.findFirst({
+            where: {
+                id: whId,
+                doctorId: id
+            }
+        });
+
+        if (!existingWorkingHours) {
+            return next(new ApiError("Working hours not found", 404));
+        }
+
+        // update working hours
+        const updatedWorkingHours = await prisma.workingHours.update({
+            where: {
+                id: whId,
+                doctorId: id
+            },
+            data: req.body
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Working hours updated successfully",
+            data: updatedWorkingHours
+        });
+    });
+
     
 }
 
