@@ -48,6 +48,7 @@ enum AppointmentStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
+  ABSENT
 }
 
 enum LabTestType {
@@ -213,9 +214,10 @@ model Appointment {
   remainingAmount   Float             @default(0)
   paymentType       PaymentTypes
   isPaid            Boolean           @default(false)
+  isFullPaid        Boolean           @default(false)
   appointmentCode   String?           @unique
-  hasConsultation   Boolean           @default(true) // NOTE: think of make endpoint after doctor consultation
-  notes             String?
+  hasConsultation   Boolean           @default(true)
+  consultationDate  DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
