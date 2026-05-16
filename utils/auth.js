@@ -33,7 +33,28 @@ class Auth {
         // Return generated token info
         return { token, tokenExpDate };
     };
+      
+    comparePassword = async (user, inputPassword) => {
 
+        // Skip check for social login
+        if (
+            user.loginType?.toLowerCase() !== "email" &&
+            !["admin", "super_admin"].includes(user.role?.toLowerCase())
+        ) {
+            if (inputPassword) return false;
+            return true;
+        }
+
+        // Email login password check
+        return await bcrypt.compare(inputPassword, user.password);
+    };
+
+    hashPassword = async (password) => {
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        return await bcrypt.hash(password, salt);
+    };
+    
 }
 
 
