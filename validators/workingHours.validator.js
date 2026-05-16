@@ -90,6 +90,47 @@ class WorkingHoursValidator {
         next();
     });
 
+    validateUpdateWorkingHours = asyncHandler(async (req, res, next) => {
+        const { id, whId } = req.params;
+
+        const schema = Joi.object({
+
+            dayOfWeek: Joi.number()
+                .min(0)
+                .max(6),
+            startTime: Joi.string()
+                .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+            endTime: Joi.string()
+                .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+            slotDuration: Joi.number()
+                .min(10)
+                .max(120)
+        })
+        .min(1)
+        .messages({
+            "object.min": "At least one field is required"
+        });
+
+        joiErrorHandler(schema, req);
+
+        if (req.body.dayOfWeek !== undefined) {
+
+            const existingDay = await prisma.workingHours.findFirst({
+                where: {
+                    doctorId: id,
+                    dayOfWeek: req.body.dayOfWeek
+                }
+            });
+
+            if (existingDay) {
+                return next(
+                    new ApiError("This day is already assigned", 400)
+                );
+            }
+        }
+        next();
+    });
+
 }
 
 module.exports = new WorkingHoursValidator();
