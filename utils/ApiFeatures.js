@@ -1,10 +1,12 @@
+const { doctor } = require("../startup/db");
+
 class ApiFeatures {
-  constructor(prismaModel, queryString, modelName) {
+  constructor(prismaModel, queryString, modelName, initialArgs = {}) {
     this.model = prismaModel;
     this.queryString = queryString;
     this.modelName = modelName;
     this.prismaArgs = {
-      where: {},
+      where: initialArgs.where || {}, // ← هنا
       orderBy: {},
       skip: 0,
       take: 20,
@@ -61,14 +63,15 @@ class ApiFeatures {
 
     // ━━━ Relation Search ━━━
     const relationFields = {
-        doctorName: (value) => ({
+        doctor: (value) => ({
             doctor: {
                 OR: [
                     {id: { contains: value, mode: "insensitive" } },
                     {email: { contains: value, mode: "insensitive" } },
                     {phone: { contains: value, mode: "insensitive" } },
                     { firstName: { contains: value, mode: "insensitive" } },
-                    { lastName: { contains: value, mode: "insensitive" } }
+                    { lastName: { contains: value, mode: "insensitive" } },
+                    { specialization: { contains: value, mode: "insensitive" } }
                 ]
             }
         }),
