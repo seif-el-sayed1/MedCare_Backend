@@ -133,6 +133,15 @@ class UserValidator {
     next();
   });
 
+  validateLanguageUpdate = asyncHandler(async (req, res, next) => {
+    const schema = Joi.object({
+      lang: Joi.string()
+        .required()
+        .valid(...LANGS),
+    });
+    joiErrorHandler(schema, req);
+    next();
+  });
 }
 
 module.exports = new UserValidator();
