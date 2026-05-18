@@ -92,6 +92,47 @@ class UserValidator {
     next();
   });
 
+  validateUpdateUser = asyncHandler(async (req, res, next) => {
+    const schema = Joi.object({
+      firstName: Joi.string().optional().min(2).max(32),
+      lastName: Joi.string().optional().min(2).max(32),
+      profilePicture: Joi.string().optional(),
+      age: Joi.number().optional(),
+      phone: Joi.string().custom(phoneNumberValidator).optional().messages({
+        "string.pattern.base":
+          "Phone number must start with '0' and contain exactly 11 digits",
+        "any.required": "Phone number is required",
+      }),
+      email: Joi.string().email().optional(),
+    });
+
+    joiErrorHandler(schema, req);
+    checkIfPhoneStartsWithPlus2(req);
+
+    if (
+      req.body.email &&
+      req.body.email !== req.user.email
+    ) {
+      const user = await prisma.user.findFirst({
+        where: {
+          email: req.body.email,
+          isVerified: true,
+        },
+      });
+
+      if (user) {
+        return next(
+          new ApiError(
+            translate("Duplicated Email", req.headers.lang),
+            400
+          )
+        );
+      }
+    }
+
+    next();
+  });
+
 }
 
 module.exports = new UserValidator();
