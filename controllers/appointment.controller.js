@@ -117,6 +117,42 @@ class AppointmentController {
         });
     });
 
+    //@desc appointment payment
+    //@route POST /appointments/:id
+    //@access private
+    makePayment = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const appointment = await prisma.appointment.findUnique({
+            where: { id },
+        });
+        if (!appointment) {
+            return next(new ApiError('Appointment not found', 404));
+        }
+        if (appointment.isPaid) {
+            return next(new ApiError("Appointment is already paid", 400));
+        }
+
+        // Create client secret key
+        PaymentController
+            .createClientSecretKey(appointment, req.user)
+            .then(async (data) => {
+                const publicKey = process.env.PAYMOB_PUBLIC_KEY;
+
+                data.paymentKey =
+                    `https://accept.paymob.com/unifiedcheckout/?publicKey=${publicKey}&clientSecret=` +
+                    data.clientSecret;
+
+                res.status(200).json({
+                    success: true,
+                    message: "Payment key created successfully",
+                    data: data
+                });
+            })
+            .catch((err) => {
+                next(err);
+            });
+    });
+
 }
 
 module.exports = new AppointmentController();
