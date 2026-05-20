@@ -80,6 +80,110 @@ class PaymentClass {
     });
   }
 
+  async callBack(req, res) {
+    try {
+        // Paymob sends HMAC either in query params or headers — check both
+        const receivedHmac = req.query.hmac || req.headers["x-hmac-sha512"];
+        if (!receivedHmac) {
+            return res.status(400).json({ success: false, message: "Missing HMAC" });
+        }
+
+        const transactionData = req.body?.obj;
+        if (!transactionData) {
+            return res.status(400).json({ success: false, message: "Invalid callback data" });
+        }
+
+        // Extract the order ID from the next_payment_intention string (format: "xxx_xxx_ORDERID")
+        // This links the callback back to the payment record we created in createClientSecretKey
+        const nextPaymentIntention = transactionData.payment_key_claims?.next_payment_intention;
+        let order_id;
+        if (nextPaymentIntention) {
+            order_id = nextPaymentIntention.split("_")[2];
+        }
+
+        if (!order_id) {
+            return res.status(400).json({ success: false, message: "Invalid order data" });
+        }
+
+        // Map Paymob transaction state to our PaymentStatus enum
+        let status = "FAILED";
+        if (transactionData.success) status = "SUCCESS";
+        else if (transactionData.pending) status = "PENDING";
+
+        // Use a transaction to ensure payment update and appointment confirmation are atomic
+        // If any step fails, both operations are rolled back
+        await prisma.$transaction(async (tx) => {
+            const payment = await tx.payment.update({
+                where: { orderCode: order_id },
+                data: {
+                    success: transactionData.success,
+                    pending: transactionData.pending,
+                    cardNum: transactionData.data?.card_num || null,
+                    cardType: transactionData.data?.card_type || null,
+                    currency: transactionData.currency || null,
+                    status,
+                }
+            });
+
+            // Only proceed to confirm the appointment if payment was successful
+            if (!payment.success) return;
+
+            const appointment = await tx.appointment.findUnique({
+                where: { id: payment.appointmentId }
+            });
+
+            if (!appointment) throw new Error("Appointment not found");
+
+            // Build date string in DDMMYY format for the appointment code (e.g. "210526")
+            const today = new Date();
+            const dateStr = `${String(today.getDate()).padStart(2, "0")}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getFullYear()).slice(-2)}`;
+
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date();
+            todayEnd.setHours(23, 59, 59, 999);
+
+            // Count today's confirmed appointments for this doctor to generate a sequential code
+            const doctorTodayCount = await tx.appointment.count({
+                where: {
+                    doctorId: appointment.doctorId,
+                    createdAt: { gte: todayStart, lte: todayEnd },
+                    appointmentStatus: "CONFIRMED",
+                    isPaid: true,
+                }
+            });
+
+            // Format: MC-DDMMYY-001 (e.g. MC-210526-003 = 3rd appointment today)
+            const appointmentCode = `MC-${dateStr}-${String(doctorTodayCount + 1).padStart(3, "0")}`;
+
+            await tx.appointment.update({
+                where: { id: payment.appointmentId },
+                data: {
+                    appointmentStatus: "CONFIRMED",
+                    // For partial payment: pay half now, remaining half later
+                    paidAmount: appointment.paymentType === "PARTIALLY_PAID"
+                        ? appointment.totalPrice / 2
+                        : appointment.totalPrice,
+                    remainingAmount: appointment.paymentType === "PARTIALLY_PAID"
+                        ? appointment.totalPrice / 2
+                        : 0,
+                    appointmentCode,
+                    isPaid: true,
+                    isFullPaid: appointment.paymentType === "FULLY_PAID",
+                }
+            });
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Callback processed",
+            status,
+        });
+
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+  }
 
 }
 
