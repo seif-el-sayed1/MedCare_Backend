@@ -105,7 +105,39 @@ class NotificationController {
         })
     })
 
-    
+    // @desc    Mark one notification as Seen
+    // @route   PATCH /notifications/mark/:id/seen
+    // @access  Private
+    markNotificationAsSeen = asyncHandler(async (req, res, next) => {
+
+        const { id } = req.params
+
+        const notification = await prisma.notification.findUnique({
+            where: { id }
+        })
+
+        if (!notification) {
+            return next(
+                new ApiError(
+                    translate("Notification not found", req.headers.lang),
+                    404
+                )
+            )
+        }
+
+        await prisma.notification.update({
+            where: { id },
+            data: {
+                seen: true
+            }
+        })
+
+        res.status(200).json({
+            success: true,
+            message: "Notification is seen successfully"
+        })
+    })
+
 }
 
 module.exports = new NotificationController()
