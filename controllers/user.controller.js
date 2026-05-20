@@ -123,6 +123,39 @@ class UserController {
         })
     })
 
+    //@desc get my waiting list using apifeatues
+    // @route GET /api/v1/users/me/waiting-list
+    // @access Private (User)
+    getMyWaitingList = asycnHandler(async (req, res, next) => {
+        const apiFeatures = new ApiFeatures(prisma.waitingList, req.query, "WaitingList", {
+            where: { userId: req.user.id }
+        })
+            .search()
+            .filter()
+            .sort()
+            .paginate()
+
+        const data = await apiFeatures.execute({
+            include: {
+                doctor: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        specialization: true,
+                    }
+                }
+            }
+        })
+
+        await apiFeatures.calculatePagination()
+
+        res.status(200).json({
+            success: true,
+            results: data.length,
+            pagination: apiFeatures.paginationResult,
+            data
+        })
+    })
 
 }
 
