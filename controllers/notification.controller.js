@@ -138,6 +138,26 @@ class NotificationController {
         })
     })
 
+    // @desc    Mark all notifications as Seen
+    // @route   PATCH /notifications/mark/all/seen
+    // @access  Private
+    markAllNotificationsAsSeen = asyncHandler(async (req, res, next) => {
+
+        await prisma.notification.updateMany({
+            where: {
+                userId: req.user.id
+            },
+            data: {
+                seen: true
+            }
+        })
+
+        res.status(200).json({
+            success: true,
+            message: "Notifications are Marked seen successfully"
+        })
+    })
+
 }
 
 module.exports = new NotificationController()
