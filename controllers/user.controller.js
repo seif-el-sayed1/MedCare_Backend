@@ -89,6 +89,41 @@ class UserController {
         });
     });
 
+    // @desc  Get My History
+    // @route GET /api/v1/users/me/history
+    // @access Private (User)
+    getMyHistory = asycnHandler(async (req, res, next) => {
+        const apiFeatures = new ApiFeatures(prisma.appointment, req.query, "Appointment", {
+            where: { userId: req.user.id }
+        })
+            .search()
+            .filter()
+            .sort()
+            .paginate()
+
+        const data = await apiFeatures.execute({
+            include: {
+                doctor: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        specialization: true,
+                    }
+                }
+            }
+        })
+
+        await apiFeatures.calculatePagination()
+
+        res.status(200).json({
+            success: true,
+            results: data.length,
+            pagination: apiFeatures.paginationResult,
+            data
+        })
+    })
+
+
 }
 
 module.exports = new UserController();
