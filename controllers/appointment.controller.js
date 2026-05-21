@@ -403,6 +403,26 @@ class AppointmentController {
         });
     });
 
+    //@desc delete appointment
+    //@route DELETE /appointments/:id
+    //@access Private
+    deleteAppointment = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+
+        const appointment = await prisma.appointment.findUnique({ where: { id } });
+        if (!appointment) return next(new ApiError("Appointment not found", 404));
+
+        await prisma.$transaction([
+            prisma.payment.deleteMany({ where: { appointmentId: id } }),
+            prisma.appointment.delete({ where: { id } }),
+        ]);
+
+        res.status(200).json({
+            success: true,
+            message: "Appointment deleted successfully"
+        });
+    });
+
 }
 
 module.exports = new AppointmentController();
