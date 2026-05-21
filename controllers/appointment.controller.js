@@ -302,6 +302,53 @@ class AppointmentController {
         });
     });
 
+    //@desc update paid status
+    //@route PATCH /appointments/:id
+    //@access private
+    updateAppointmentPayment = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const { paidAmount } = req.body;
+
+        const result = await prisma.$transaction(async (tx) => {
+            const appointment = await tx.appointment.findUnique({ where: { id } });
+            if (!appointment) throw new ApiError("Appointment not found", 404);
+
+            if (appointment.totalPrice === appointment.paidAmount)
+                throw new ApiError("Appointment is already fully paid", 400);
+
+            if (paidAmount < appointment.remainingAmount)
+                throw new ApiError(`You must pay the full remaining amount: ${appointment.remainingAmount} EGP`, 400);
+
+            if (paidAmount > appointment.remainingAmount)
+                throw new ApiError(`Paid amount exceeds remaining amount: ${appointment.remainingAmount} EGP`, 400);
+
+            const newPaidAmount = appointment.paidAmount + paidAmount;
+            const newRemainingAmount = appointment.totalPrice - newPaidAmount;
+
+            await tx.appointment.update({
+                where: { id },
+                data: {
+                    paidAmount: newPaidAmount,
+                    remainingAmount: newRemainingAmount,
+                    paymentType: "FULLY_PAID",
+                    isFullPaid: true
+                }
+            });
+
+            return { newPaidAmount, newRemainingAmount };
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Payment updated successfully",
+            data: {
+                paidAmount: result.newPaidAmount,
+                remainingAmount: result.newRemainingAmount,
+                isFullPaid: true
+            }
+        });
+    });
+
 }
 
 module.exports = new AppointmentController();
