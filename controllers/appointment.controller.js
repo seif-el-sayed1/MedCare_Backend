@@ -178,7 +178,130 @@ class AppointmentController {
 
         res.send(pdf);
     });
-    
+
+    //@desc get all appointments for admin
+    //@route GET /appointments
+    //@access private
+    getAllAppointments = asyncHandler(async (req, res, next) => {
+        const apiFeatues = new ApiFeatures(prisma.appointment, req.query, "Appointment")
+            .search()
+            .filter()
+            .sort()
+            .paginate()
+
+        const data = await apiFeatues.execute({
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true
+                    }
+                },
+                doctor: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true,
+                        specialization: true
+                    }
+                }
+            }
+        });
+
+        await apiFeatues.calculatePagination();
+
+        res.status(200).json({
+            success: true,
+            results: data.length,
+            pagination: apiFeatues.paginationResult,
+            data: data
+        });
+    });
+
+    //@desc get doctor appointments
+    //@route GET /appointments/:doctorId
+    //@access private
+    getDoctorAppointments = asyncHandler(async (req, res, next) => {
+        const { doctorId } = req.params;
+
+        const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
+        if (!doctor) return next(new ApiError("Doctor not found", 404));
+
+        const apiFeatues = new ApiFeatures(prisma.appointment, req.query, "Appointment", {
+            where: { doctorId }
+        })
+            .search()
+            .filter()
+            .sort()
+            .paginate()
+
+        const data = await apiFeatues.execute({
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true
+                    }
+                }
+            }
+        });
+
+        await apiFeatues.calculatePagination();
+
+        res.status(200).json({
+            success: true,
+            results: data.length,
+            pagination: apiFeatues.paginationResult,
+            data
+        });
+    });
+
+    //@desc get single appointment
+    //@route GET /appointments/:id
+    //@access private
+    getOneAppointment = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const appointment = await prisma.appointment.findUnique({
+            where: { id },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true
+                    }
+                },
+                doctor: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true,
+                        specialization: true
+                    }
+                }
+            }
+        });
+        if (!appointment) {
+            return next(new ApiError("Appointment not found", 404));
+        }
+        res.status(200).json({
+            success: true,
+            data: appointment
+        });
+    });
+
 }
 
 module.exports = new AppointmentController();
