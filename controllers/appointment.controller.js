@@ -349,6 +349,34 @@ class AppointmentController {
         });
     });
 
+    //@desc change appointment status
+    //@route PATCH /appointments/:id/status
+    //@access Private
+    updateAppointmentStatus = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const { status } = req.body;
+        const appointment = await prisma.appointment.findUnique({ where: { id } });
+
+        if (!appointment) return next(new ApiError("Appointment not found", 404));
+
+        if (status === appointment.appointmentStatus)
+            return next(new ApiError(`Status is already ${status.toLowerCase()}`, 400));
+
+        await prisma.appointment.update({
+            where: { id },
+            data: {
+                appointmentStatus: status
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Status updated successfully",
+            data: { status }
+        });
+    });
+
+
 }
 
 module.exports = new AppointmentController();
