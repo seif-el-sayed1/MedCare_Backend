@@ -153,6 +153,32 @@ class AppointmentController {
             });
     });
 
+    //@desc generate appointment report
+    //@route GET /appointments/:id/report
+    //@access private
+    generateReport = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const appointment = await prisma.appointment.findUnique({
+            where: { id },
+            include: {
+                user: true,
+                doctor: true
+            }
+        });
+        if (!appointment) {
+            return next(new ApiError('Appointment not found', 404));
+        }
+        if (!appointment.isPaid) {
+            return next(new ApiError("Appointment is not paid yet", 400));
+        }
+        const pdf = await generateAppointmentPDF(appointment);
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename=appointment-${appointment.appointmentCode}.pdf`);
+
+        res.send(pdf);
+    });
+    
 }
 
 module.exports = new AppointmentController();
