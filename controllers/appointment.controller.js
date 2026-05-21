@@ -376,6 +376,32 @@ class AppointmentController {
         });
     });
 
+    //@desc update consultation date
+    //@route PATCH /appointments/:id/consultation
+    //@access Private
+    updateAppointmentConsultation = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const appointment = await prisma.appointment.findUnique({ where: { id } });
+
+        if (!appointment) return next(new ApiError("Appointment not found", 404));
+
+        await prisma.appointment.update({
+            where: { id },
+            data: {
+                consultationDate: new Date(),
+                hasConsultation: false
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "consultation updated successfully",
+            data: {
+                consultationDate: new Date(),
+                hasConsultation: false
+            }
+        });
+    });
 
 }
 
