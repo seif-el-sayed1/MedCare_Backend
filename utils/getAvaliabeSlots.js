@@ -3,7 +3,7 @@ const prisma = require('../startup/db');
 /**
  * Utility function to generate doctor available slots for a specific date.
  * It validates the requested date, checks doctor's working hours,
- * filters booked appointments, and returns all slots with booking/past status.
+ * filters booked appointments, and returns all slots with booking/closed status.
  */
 async function getAvailableSlots(doctorId, date) {
 
@@ -113,13 +113,16 @@ async function getAvailableSlots(doctorId, date) {
     const slotISO = new Date(slot).toISOString();
 
     const isBooked = bookedTimes.has(slotISO);
-    const isPast = slot <= now;
+
+    // Slot is closed if less than 1 hour remains before it
+    const oneHourBefore = new Date(slot.getTime() - 60 * 60 * 1000);
+    const isClosed = oneHourBefore <= now;
 
     slots.push({
       time: `${slot.getHours().toString().padStart(2, '0')}:${slot.getMinutes().toString().padStart(2, '0')}`,
       datetime: slotISO,
       isBooked,
-      isPast
+      isClosed
     });
 
     // Move to next slot
