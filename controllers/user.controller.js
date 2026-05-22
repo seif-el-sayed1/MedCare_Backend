@@ -157,6 +157,30 @@ class UserController {
         })
     })
 
+    //@desc get one user 
+    // @route GET /api/v1/users/:id
+    // @access Private (Super Doctor)
+    getOneUser = asycnHandler(async (req, res, next) => {
+        const userId = req.params.id;
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                profilePicture: true,
+                age: true,
+                lang: true
+            }
+        });
+        res.status(200).json({
+            success: true,
+            data: user,
+        });
+    });
+
 }
 
 module.exports = new UserController();
