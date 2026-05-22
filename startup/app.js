@@ -5,12 +5,15 @@ const bodyParser = require("body-parser");
 const compression = require("compression");
 const AppRoutes = require("../routes/index.routes");
 const globalError = require("../middlewares/error.middleware");
+const uploadAnyFile = require("../middlewares/upload.middleware");
+
 
 module.exports = (app) => {
   // Middlewares
   app.use(cors());
   app.use(compression());
 
+  app.use(uploadAnyFile);
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({ extended: true }));
   app.use(express.json({ limit: "25kb" }));
