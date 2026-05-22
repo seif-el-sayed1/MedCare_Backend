@@ -59,8 +59,28 @@ class EmailController {
     });
   };
 
+  doctorVerificationEmail = async (token, emailAddress) => {
+    const doctorUrl =  process.env.DOCTOR_URL;
+    const verifyLink =  process.env.DOCTOR_VERIFY ;
+    const loginLink =  process.env.DOCTOR_LOGIN ;
 
-
+    const html = generateHTML({
+      link: doctorUrl,
+      emailTitle: "Verify Your Doctor Account",
+      emailSubTitle: "Tap the button below to verify your email address.",
+      btnText: "Verify Account",
+      btnLink: verifyLink + token,
+      belowText: "You can login from here:",
+      belowLink: loginLink,
+      footerNote: `You received this email because you were added as a doctor on ${process.env.APP_NAME}. If you did not initiate this action, please ignore this email.`,
+      footerLink: process.env.APP_NAME
+    });
+    await sendEmail({
+      email: emailAddress,
+      subject: `${process.env.APP_NAME} doctor account verification`,
+      html: html
+    });
+  };
 }
 
 module.exports = new EmailController();
