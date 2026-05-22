@@ -6,7 +6,7 @@ class ApiFeatures {
     this.queryString = queryString;
     this.modelName = modelName;
     this.prismaArgs = {
-      where: initialArgs.where || {}, // ← هنا
+      where: initialArgs.where || {}, 
       orderBy: {},
       skip: 0,
       take: 20,
@@ -23,6 +23,7 @@ class ApiFeatures {
           User: ["firstName", "lastName", "email", "phone"],
           Doctor: ["firstName", "lastName", "email"],
           Appointment: ["appointmentCode"],
+          Admin: ["firstName", "lastName", "email"]
       };
 
       const relationSearch = {
@@ -61,7 +62,7 @@ class ApiFeatures {
         return value;
     };
 
-    // ━━━ Relation Search ━━━
+    // Relation Search 
     const relationFields = {
         doctor: (value) => ({
             doctor: {
@@ -95,7 +96,7 @@ class ApiFeatures {
         }
     }
 
-    // ━━━ Date Range ━━━
+    // Date Range
     if (queryObj.startDate || queryObj.endDate) {
         where.createdAt = {}
         if (queryObj.startDate) {
@@ -111,7 +112,7 @@ class ApiFeatures {
         if (Object.keys(where.createdAt).length === 0) delete where.createdAt
     }
 
-    // ━━━ Operators ━━━
+    // Operators
     const operators = ["gt", "gte", "lt", "lte"]
 
     for (const key in queryObj) {
