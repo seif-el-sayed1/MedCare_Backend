@@ -516,6 +516,40 @@ class AppointmentController {
         });
     });
 
+    //@desc get user history
+    //@route GET /appointments/:userId
+    //@access private
+    getUserHistory = asyncHandler(async (req, res, next) => {
+        const { userId } = req.params;
+        const apiFeatures = new ApiFeatures(prisma.appointment, req.query, "Appointment", {
+            where: { userId }
+        })
+            .search()
+            .filter()
+            .sort()
+            .paginate()
+
+        const data = await apiFeatures.execute({
+            include: {
+                doctor: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        specialization: true,
+                    }
+                }
+            }
+        })
+
+        await apiFeatures.calculatePagination()
+
+        res.status(200).json({
+            success: true,
+            results: data.length,
+            pagination: apiFeatures.paginationResult,
+            data
+        })
+    })
 }
 
 module.exports = new AppointmentController();
