@@ -89,7 +89,7 @@ class AdminAuthController{
         // Generate token for verification email
         const tokenData = await Auth.generateToken(
             admin.id,
-            ADMIN,
+            admin.role,
             "admin"
         );
         // Send verification mail
@@ -106,7 +106,7 @@ class AdminAuthController{
     // in case the admin account is not verified
     const tokenData = await Auth.generateToken(
         admin.id,
-        ADMIN,
+        admin.role,
         "admin"
     );
     await prisma.admin.update({
