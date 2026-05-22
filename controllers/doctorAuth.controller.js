@@ -122,6 +122,37 @@ class DoctorAuthController {
         });
     });
 
+    //@desc Doctor loggedin Change password
+    //@route POST /doctors/auth/change-password
+    //@access Private(Doctor)
+    doctorChangePassword = asyncHandler(async (req, res,next) => {
+        const doctor = req.user
+        const { currentPassword, newPassword } = req.body;
+        const lang = req.headers.lang || "en"
+    
+        //compare current password
+        if (!await Auth.comparePassword(doctor, currentPassword)){
+          return next(new ApiError(translate("Incorrect current password", lang), 400))
+        }
+        //new password must be different from the current password
+        if (await Auth.comparePassword(doctor, newPassword)){
+          return next(new ApiError(translate("New password must be different from the current password", lang), 400));
+        }
+    
+        await prisma.doctor.update({
+          where: {id: doctor.id},
+          data: {
+            password: await Auth.hashPassword(req.body.newPassword),
+            passwordChangedAt: new Date()  
+          }
+        })
+    
+        res.status(200).json({
+          success: true,
+          message: "Password updated successfully"
+        });
+    })
+
 }
 
 module.exports = new DoctorAuthController()
