@@ -463,6 +463,59 @@ class AppointmentController {
         });
     });
 
+    //@desc scan qr code
+    //@route GET /appointments/:id/scan
+    //@access Public
+    scanAppointment = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+
+        const result = await prisma.$transaction(async (tx) => {
+            const appointment = await tx.appointment.findUnique({
+                where: { id },
+                include: { user: true, doctor: true }
+            });
+
+            if (!appointment) {
+                throw Object.assign(new Error('Appointment not found'), { statusCode: 404 });
+            }
+
+            if (!appointment.isFullPaid) {
+                throw Object.assign(new Error('Payment required'), {
+                    statusCode: 400,
+                    paymentData: {
+                        totalPrice: appointment.totalPrice,
+                        paidAmount: appointment.paidAmount,
+                        remainingAmount: appointment.remainingAmount,
+                        patient: `${appointment.user.firstName} ${appointment.user.lastName}`,
+                        doctor: `Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`,
+                    }
+                });
+            }
+
+            if (appointment.appointmentStatus === 'COMPLETED') {
+                throw Object.assign(new Error('Appointment already scanned'), { statusCode: 400 });
+            }
+
+            const updated = await tx.appointment.update({
+                where: { id },
+                data: { appointmentStatus: 'COMPLETED' }
+            });
+
+            return { updated, appointment };
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Appointment confirmed',
+            data: {
+                appointmentStatus: result.updated.appointmentStatus,
+                patient: `${result.appointment.user.firstName} ${result.appointment.user.lastName}`,
+                doctor: `Dr. ${result.appointment.doctor.firstName} ${result.appointment.doctor.lastName}`,
+                appointmentDate: result.updated.appointmentDate
+            }
+        });
+    });
+
 }
 
 module.exports = new AppointmentController();
