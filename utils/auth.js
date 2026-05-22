@@ -39,7 +39,7 @@ class Auth {
         // Skip check for social login
         if (
             user.loginType?.toLowerCase() !== "email" &&
-            !["admin", "super_admin"].includes(user.role?.toLowerCase())
+            !["admin", "super_admin", "doctor"].includes(user.role?.toLowerCase())
         ) {
             if (inputPassword) return false;
             return true;
@@ -55,13 +55,18 @@ class Auth {
         return await bcrypt.hash(password, salt);
     };
 
-    createPasswordResetToken = async (userId) => {
-
+    createPasswordResetToken = async (userId, model = "admin") => {
         const rawToken = crypto.randomBytes(32).toString("hex");
         const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
 
-        // Save hashed reset token with expiry (10 minutes)
-        await prisma.admin.update({
+        // pick model dynamically
+        const dbModel = prisma[model];
+
+        if (!dbModel) {
+            throw new Error(`Invalid model: ${model}`);
+        }
+
+        await dbModel.update({
             where: { id: userId },
             data: {
                 passwordResetToken: hashedToken,
