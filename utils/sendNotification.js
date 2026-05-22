@@ -1,12 +1,6 @@
 const { getMessaging } = require("firebase-admin/messaging");
 const expressAsyncHandler = require("express-async-handler");
 const admin = require("firebase-admin");
-const serviceAccount = require("../firebaseServiceAccountKey.json");
-
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET
-});
 
 const sendNotification = ({
   global,
