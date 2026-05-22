@@ -172,7 +172,7 @@ class UserController {
           gender: req.body.gender,
           email: req.body.email,
           phone: req.body.phone,
-          age: req.body.age,
+          age: Number.parseInt(req.body.age) || req.body.age,
           profilePicture: req.body.image || req.body.profilePicture,
           loginType: req.body.loginType,
           notificationToken: req.body.notificationToken,
