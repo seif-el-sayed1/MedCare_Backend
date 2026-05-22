@@ -4,80 +4,91 @@ const prisma = require("../startup/db")
 
 class PaymentClass {
   async createClientSecretKey(appointment, user) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // If partially paid, charge half the price; otherwise charge full price (convert to cents)
-        const amount = appointment.paymentType === "PARTIALLY_PAID" ? (appointment.totalPrice / 2) * 100 : appointment.totalPrice * 100; 
-        let items = [
-          {
+
+    // Convert price to cents (Paymob works with smallest currency unit)
+    const amount = appointment.paymentType === "PARTIALLY_PAID" 
+        ? (appointment.totalPrice / 2) * 100 
+        : appointment.totalPrice * 100;
+
+    const items = [
+        {
             name: "Appointment Fees",
             description: "It's Appointment Fees",
             quantity: 1,
-            amount: amount,
-          },
-        ];
-        let paymobIntegrationId = Number(process.env.PAYMOB_INTEGRATION_ID);
-        const user_id = user.id;
-        let address = {};
-        const requestBody = {
-          amount,
-          currency: "EGP",
-          payment_methods: [paymobIntegrationId],
-          items,
-          billing_data: {
+            amount,
+        },
+    ];
+
+    const requestBody = {
+        amount,
+        currency: "EGP",
+        payment_methods: [Number(process.env.PAYMOB_INTEGRATION_ID)],
+
+        items,
+
+        billing_data: {
             first_name: user.firstName,
             last_name: user.lastName,
             email: user.email,
+
             phone_number: user.phone || "NA",
-            apartment: address?.apartment || 1,
-            floor: address?.floor || 1,
-            street: address?.street || 1,
-            building: address?.building || 1,
+
+            // Paymob requires full address structure even if dummy values
+            apartment: 1,
+            floor: 1,
+            street: 1,
+            building: 1,
+
             city: user.city?.nameEn || "NA",
             state: user.region?.nameEn || "NA",
             country: "Egypt",
-            postal_code: address?.postalCode || "NA",
+
+            postal_code: "NA",
             promoCodeApplied: "NA",
-          },
-          customer: {
+        },
+
+        customer: {
             first_name: user.firstName,
             last_name: user.lastName,
             email: user.email,
-            extras: {
-              re: "22",
-            },
-          },
-          extras: {
-            ee: 22,
-          },
-        };
-        const secretKey = process.env.PAYMOB_SECRET_KEY;
-        const response = await axios.post(
-          "https://accept.paymob.com/v1/intention/",
-          requestBody,
-          {
-            headers: { Authorization: `Token ${secretKey}` },
-          },
-        );
 
-        // Paymob's Intention API generates a unique order ID in the format "xxx_xxx_ORDERID"
-        const transaction = await prisma.payment.create({
-            data: {
-                appointmentId: appointment.id,
-                orderCode: response.data.id.split("_")[2],
-                userId: user_id,
-                amount: amount / 100,
-                billedAmount: amount / 100,
-                status: "PENDING",
-                clientSecret: response.data.client_secret,
-            }
-        });
+            // Optional metadata field for Paymob tracking
+            extras: { re: "22" },
+        },
 
-        resolve({ transaction, clientSecret: response.data.client_secret });
-      } catch (error) {
-        reject(error);
-      }
+        // Additional metadata (not required by Paymob core API)
+        extras: { ee: 22 },
+    };
+
+    const response = await axios.post(
+        "https://accept.paymob.com/v1/intention/",
+        requestBody,
+
+        // Secret key used for server-to-server authentication
+        { headers: { Authorization: `Token ${process.env.PAYMOB_SECRET_KEY}` } }
+    );
+
+    const transaction = await prisma.payment.create({
+        data: {
+            appointmentId: appointment.id,
+
+            // Extract order code from Paymob response ID format
+            orderCode: response.data.id.split("_")[2],
+
+            userId: user.id,
+
+            // Convert back from cents to main currency unit
+            amount: amount / 100,
+            billedAmount: amount / 100,
+
+            status: "PENDING",
+
+            // Save Paymob client secret for later payment confirmation
+            clientSecret: response.data.client_secret,
+        }
     });
+
+    return { transaction, clientSecret: response.data.client_secret };
   }
 
   async callBack(req, res) {
@@ -93,8 +104,27 @@ class PaymentClass {
             return res.status(400).json({ success: false, message: "Invalid callback data" });
         }
 
-        // Extract the order ID from the next_payment_intention string (format: "xxx_xxx_ORDERID")
-        // This links the callback back to the payment record we created in createClientSecretKey
+        const hmacSecret = process.env.PAYMOB_HMAC_SECRET;
+
+        const hmacFields = [
+            transactionData?.amount_cents, transactionData?.created_at, transactionData?.currency,
+            transactionData?.error_occured, transactionData?.has_parent_transaction, transactionData?.id,
+            transactionData?.integration_id, transactionData?.is_3d_secure, transactionData?.is_auth,
+            transactionData?.is_capture, transactionData?.is_refunded, transactionData?.is_standalone_payment,
+            transactionData?.is_voided, transactionData?.order?.id, transactionData?.owner,
+            transactionData?.pending, transactionData?.source_data?.pan, transactionData?.source_data?.sub_type,
+            transactionData?.source_data?.type, transactionData?.success
+        ].join("");
+
+        const calculatedHmac = crypto
+            .createHmac("sha512", hmacSecret)
+            .update(hmacFields)
+            .digest("hex");
+
+        if (calculatedHmac !== receivedHmac) {
+            return res.status(401).json({ success: false, message: "Invalid HMAC" });
+        }
+
         const nextPaymentIntention = transactionData.payment_key_claims?.next_payment_intention;
         let order_id;
         if (nextPaymentIntention) {
@@ -105,13 +135,10 @@ class PaymentClass {
             return res.status(400).json({ success: false, message: "Invalid order data" });
         }
 
-        // Map Paymob transaction state to our PaymentStatus enum
         let status = "FAILED";
         if (transactionData.success) status = "SUCCESS";
         else if (transactionData.pending) status = "PENDING";
 
-        // Use a transaction to ensure payment update and appointment confirmation are atomic
-        // If any step fails, both operations are rolled back
         await prisma.$transaction(async (tx) => {
             const payment = await tx.payment.update({
                 where: { orderCode: order_id },
@@ -125,7 +152,6 @@ class PaymentClass {
                 }
             });
 
-            // Only proceed to confirm the appointment if payment was successful
             if (!payment.success) return;
 
             const appointment = await tx.appointment.findUnique({
@@ -134,7 +160,6 @@ class PaymentClass {
 
             if (!appointment) throw new Error("Appointment not found");
 
-            // Build date string in DDMMYY format for the appointment code (e.g. "210526")
             const today = new Date();
             const dateStr = `${String(today.getDate()).padStart(2, "0")}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getFullYear()).slice(-2)}`;
 
@@ -143,7 +168,6 @@ class PaymentClass {
             const todayEnd = new Date();
             todayEnd.setHours(23, 59, 59, 999);
 
-            // Count today's confirmed appointments for this doctor to generate a sequential code
             const doctorTodayCount = await tx.appointment.count({
                 where: {
                     doctorId: appointment.doctorId,
@@ -153,14 +177,12 @@ class PaymentClass {
                 }
             });
 
-            // Format: MC-DDMMYY-001 (e.g. MC-210526-003 = 3rd appointment today)
             const appointmentCode = `MC-${dateStr}-${String(doctorTodayCount + 1).padStart(3, "0")}`;
 
             await tx.appointment.update({
                 where: { id: payment.appointmentId },
                 data: {
                     appointmentStatus: "CONFIRMED",
-                    // For partial payment: pay half now, remaining half later
                     paidAmount: appointment.paymentType === "PARTIALLY_PAID"
                         ? appointment.totalPrice / 2
                         : appointment.totalPrice,
@@ -186,5 +208,5 @@ class PaymentClass {
   }
 
 }
-
+  
 module.exports = new PaymentClass();
