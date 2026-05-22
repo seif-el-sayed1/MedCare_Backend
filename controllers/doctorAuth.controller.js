@@ -152,6 +152,33 @@ class DoctorAuthController {
           message: "Password updated successfully"
         });
     })
+    
+    //@desc doctor verify account 
+    //@route GET /doctors/auth/verify-account
+    //@access Private(Doctor)
+    verifyAccount = asyncHandler(async (req, res, next) => {
+        const doctor = req.user
+        const { password } = req.body
+        const lang = req.headers.lang || "en"
+
+        // Check if doctor is already verified
+        if (doctor.isVerified) return next(new ApiError(translate("This account is already verified", lang), 400));
+        
+        // Update doctor document only if not already verified
+        await prisma.doctor.update({
+        where: {id: doctor.id},
+        data: {
+            isVerified: true,
+            password: await Auth.hashPassword(password),
+            passwordChangedAt: new Date()
+        }
+        })
+        
+        res.status(200).json({
+            success: true,
+            message: "Account verified successfully"
+        });
+    })
 
 }
 
