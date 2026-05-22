@@ -1,8 +1,9 @@
 exports.SUPER_ADMIN = "SUPER_ADMIN";
 exports.ADMIN = "ADMIN";
 exports.USER = "USER";
+exports.DOCTOR = "DOCTOR";
 
-exports.ROLES = [exports.SUPER_ADMIN, exports.ADMIN, exports.USER];
+exports.ROLES = [exports.SUPER_ADMIN, exports.ADMIN, exports.USER, exports.DOCTOR];
 exports.LANGS = ["EN", "AR"];
 
 exports.LOGIN_TYPE = ["APPLE", "GOOGLE", "EMAIL", "SOCIAL"];
@@ -12,7 +13,6 @@ exports.SPECIALIZATION = ["INTERNAL_MEDICINE", "PEDIATRICS","CARDIOLOGY",
                             "DERMATOLOGY", "ORTHOPEDICS", "NEUROLOGY", 
                             "OPHTHALMOLOGY", "ENT", "DENTISTRY"
                         ];
-// exports.APPOINTMENT_STATUS = ["PENDING", "CONFIRMED", "CANCELED", "COMPLETED"]; 
 exports.LAB_TEST_TYPE = ["CBC", "BLOOD_SUGAR", "LIVER_FUNCTION", "KIDNEY_FUNCTION", "URINE_ANALYSIS", "THYROID_FUNCTION"];
 exports.LAB_TEST_STATUS = ["PENDING", "COMPLETED", "CANCELED", "CONFIRMED"];
 exports.PAYMENT_TYPES = ["PARTIALLY_PAID", "FULLY_PAID"];
