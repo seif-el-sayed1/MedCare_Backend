@@ -423,6 +423,46 @@ class AppointmentController {
         });
     });
 
+    //@desc generate qr code
+    //@route GET /appointments/:id/qr
+    //@access Public
+    generateQRCode = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+
+        const appointment = await prisma.appointment.findUnique({
+            where: { id },
+            include: {
+                user: true,
+                doctor: true
+            }
+        });
+
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+
+        if (appointment.userId !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Not authorized' });
+        }
+
+        const qrData = `${BACKEND_URL}/appointments/${appointment.id}/scan/`;
+
+        const qrCode = await QRCode.toDataURL(qrData, {
+            errorCorrectionLevel: 'M',
+            width: 300,
+            margin: 2,
+            color: {
+                dark: '#1a1a2e',
+                light: '#ffffff'
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            data: { qrCode }
+        });
+    });
+
 }
 
 module.exports = new AppointmentController();
