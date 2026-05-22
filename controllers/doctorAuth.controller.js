@@ -180,6 +180,86 @@ class DoctorAuthController {
         });
     })
 
+    //@desc doctor forgot password
+    //@route POST /doctors/auth/forgot-password
+    //@access Public
+    doctorForgotPassword = asyncHandler(async(req, res, next) => {
+        const { email } = req.body;
+        const lang = req.headers.lang || "en"
+        // Check email
+        if (!email) return next(new ApiError(translate("Email address is required", lang), 400));
+
+        const doctor = await prisma.doctor.findUnique({
+            where: { email },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                password: true,
+                isDeleted: true,
+                isVerified: true
+            }
+        });
+
+        if (!doctor || doctor.isDeleted) {
+            return next(
+                new ApiError(
+                    translate("Doctor not found", lang),
+                    404
+                )
+            );
+        }
+        const token = await Auth.createPasswordResetToken(doctor.id, "doctor");
+        await EmailController.doctorForgotPasswordEmail(token, email);
+
+        res.status(200).json({
+            success: true,
+            message: "Reset password email is sent to your email address"
+        });
+
+    })
+
+    //@desc doctor reset password
+    //@route PATCH /doctors/auth/reset-password/:token
+    //@access Public
+    doctorResetPassword = asyncHandler(async (req, res, next) => {
+        const hashedToken = crypto
+        .createHash("sha256")
+        .update(req.params.token)
+        .digest("hex");
+
+        const doctor = await prisma.doctor.findFirst({
+            where: {
+                passwordResetToken: hashedToken,
+                passwordResetExpiresAt: {
+                gt: new Date(),
+                },
+            },
+        });
+
+        if (!doctor) return next(new ApiError("Token Not Found!", 404));
+
+        const { password } = req.body;
+        const hashedPassword = await Auth.hashPassword(password);
+
+        await prisma.doctor.update({
+            where: { id: doctor.id },
+            data: {
+                password: hashedPassword,
+                passwordChangedAt: new Date(),
+                verificationToken: null,
+                passwordResetToken: null,
+                passwordResetExpiresAt: null,
+            },
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Password is reset successfully, please login again...",
+        });
+    });
+
 }
 
 module.exports = new DoctorAuthController()
