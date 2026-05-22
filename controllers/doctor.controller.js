@@ -4,6 +4,9 @@ const ApiFeatures = require("../utils/ApiFeatures")
 const ApiError = require("../utils/ApiError")
 const { translate } = require("../utils/translation")
 const {getAvailableSlots} = require("../utils/getAvaliabeSlots")
+const EmailController = require("./email.controller")
+const Auth = require("../utils/auth")
+const { DOCTOR } = require("../utils/constants")
 
 const dayNames = {
     0: "Sunday",
@@ -31,6 +34,7 @@ class DoctorController {
             data: {
                 ...doctorData,
                 email,
+                password: "PENDING",
                 workingHours: {
                     create: workingHours
                 }
@@ -39,6 +43,11 @@ class DoctorController {
                 workingHours: true
             }
         })
+
+        const tokenData = await Auth.generateToken(doctor.id, DOCTOR, "doctor")
+        // Send verification mail
+        await EmailController.doctorVerificationEmail(tokenData.token, email);
+    
 
         res.status(201).json({
             success: true,
@@ -121,11 +130,6 @@ class DoctorController {
     //@desc toggle delete doctor
     //@route PATCH /doctors/:id
     //@access private
-    /**
-     * This endpoint performs a soft delete for a doctor.
-     * The doctor will be permanently (hard) deleted after 15 days
-     * if it remains in a soft deleted state.
-    */
     toggleDeleteDoctor = asyncHandler(async (req, res, next) => {
         const { id } = req.params;
 
