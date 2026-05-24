@@ -64,8 +64,8 @@ router.route("/:id/report")
     )
 
     
-router.route('/:id/qr').get(protect, AppointmentController.generateQRCode);
-router.route('/:id/scan').get(AppointmentController.scanAppointment);
+router.route('/:id/qr').get(protect, allowedTo(USER), AppointmentController.generateQRCode);
+router.route('/:id/scan').get(protect, allowedTo(ADMIN, SUPER_ADMIN), AppointmentController.scanAppointment);
 
 router.route("/:doctorId")
     .post(
