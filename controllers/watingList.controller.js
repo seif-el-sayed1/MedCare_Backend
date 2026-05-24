@@ -103,6 +103,41 @@ class WatingListController{
         })
     })
 
+    //@desc remove from wating list
+    //@route DELETE /api/v1/wating-list/:id
+    //@access private   
+    removeFromWaitingList = asyncHandler(async (req, res, next) => {
+
+        const { id } = req.params
+        const userId = req.user.id
+
+        const waiting = await prisma.waitingList.findUnique({
+            where: {
+                id
+            }
+        })
+
+        if (!waiting) {
+            return next(new ApiError("Waiting list not found", 404))
+        }
+
+        if (waiting.userId !== userId) {
+            return next(new ApiError("You are not authorized to remove this waiting list", 401))
+        }
+
+        await prisma.waitingList.delete({
+            where: {
+                id
+            }
+        })
+
+        res.status(200).json({
+            success: true,
+            message: "Waiting list removed successfully"
+        })
+    })
+
+
 }
 
 
