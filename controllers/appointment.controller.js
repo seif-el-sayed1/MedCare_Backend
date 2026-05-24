@@ -357,6 +357,8 @@ class AppointmentController {
         const { status } = req.body;
         const appointment = await prisma.appointment.findUnique({ where: { id } });
 
+        if (appointment.status !== "PENDING") return next(new ApiError("Status cannot be changed", 400));
+
         if (!appointment) return next(new ApiError("Appointment not found", 404));
 
         if (status === appointment.appointmentStatus)
@@ -445,7 +447,7 @@ class AppointmentController {
             return res.status(403).json({ success: false, message: 'Not authorized' });
         }
 
-        const qrData = `${BACKEND_URL}/appointments/${appointment.id}/scan/`;
+        const qrData = `${process.env.BACKEND_URL}/appointments/${appointment.id}/scan/`;
 
         const qrCode = await QRCode.toDataURL(qrData, {
             errorCorrectionLevel: 'M',
