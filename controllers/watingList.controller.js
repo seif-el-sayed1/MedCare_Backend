@@ -64,6 +64,45 @@ class WatingListController{
         })
     })
 
+    //@desc get user wating list
+    //@route GET /api/v1/wating-list
+    //@access private
+    getAllWaitingList = asyncHandler(async (req, res, next) => {
+
+        const features = new ApiFeatures(prisma.waitingList, req.query, "WaitingList",)
+            .filter()
+            .sort()
+            .paginate()
+
+        await features.calculatePagination()
+
+        const data = await features.execute({
+            include: {
+                user: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        email: true
+                    }
+                },
+                doctor: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        specialization: true,
+                        consultationPrice: true
+                    }
+                }
+            }
+        })
+
+        res.status(200).json({
+            message: "Waiting list fetched successfully",
+            pagination: features.paginationResult,
+            data
+        })
+    })
+
 }
 
 
