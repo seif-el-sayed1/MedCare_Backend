@@ -26,6 +26,30 @@ class AppointmentValidator {
         next();
     })
 
+    validateUpdateAppointmentPayment = asyncHandler(async (req, res, next) => {
+        const schema = Joi.object({
+            paidAmount: Joi.number().min(0).required().messages({
+                "any.required": "Paid amount is required",
+            }),
+        })
+
+        joiErrorHandler(schema, req)
+        next();
+    })
+
+    validateUpdateAppointmentStatus = asyncHandler(async (req, res, next) => {
+        const schema = Joi.object({
+            status: Joi.string().valid(...APPOINTMENT_STATUS).required().messages({
+                "any.required": "Status is required",
+                "any.only": `Status must be one of the following: ${APPOINTMENT_STATUS.join(", ").toLocaleLowerCase()}`,
+            }),
+        })
+
+        joiErrorHandler(schema, req)
+        next();
+    })
+
+
 }
 
 module.exports = new AppointmentValidator();
