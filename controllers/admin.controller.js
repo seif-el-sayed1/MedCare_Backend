@@ -34,7 +34,8 @@ class AdminController {
         lastName: admin.lastName,
         fullName: admin.fullName,
         email: admin.email,
-        isVerified: admin.isVerified
+        isVerified: admin.isVerified,
+        phone: admin.phone
       }
     });
   })  
