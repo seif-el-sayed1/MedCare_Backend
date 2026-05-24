@@ -270,3 +270,19 @@ model Appointment {
   @@index([userId, appointmentStatus])
   @@index([appointmentDate])
 }
+
+model Notification {
+  id           String   @id @default(uuid())
+  title        String
+  body         String?
+  case         String?
+  info         String?
+  global       Boolean  @default(false)
+  seen         Boolean  @default(false)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  createdAt    DateTime @default(now())
+  scheduleTime DateTime @default(now())
+
+  @@index([userId, seen])
+}
