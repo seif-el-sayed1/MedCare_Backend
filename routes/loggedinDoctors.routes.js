@@ -22,6 +22,8 @@ router.route("/update").patch(
     LoggedInDoctorController.updateDoctorProfile
 );
 
+router.route("/ratings").get(protect, allowedTo(DOCTOR), LoggedInDoctorController.getMyRatings);
+
 router.route("/appointments").get(protect, allowedTo(DOCTOR), LoggedInDoctorController.getMyAppointments);
 
 router.route("/:id").patch(protect, allowedTo(DOCTOR), LoggedInDoctorController.writeDiagnosis);
