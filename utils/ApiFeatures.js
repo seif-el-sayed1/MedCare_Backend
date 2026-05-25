@@ -6,11 +6,12 @@ class ApiFeatures {
     this.queryString = queryString;
     this.modelName = modelName;
     this.prismaArgs = {
-      where: initialArgs.where || {}, 
-      orderBy: {},
-      skip: 0,
-      take: 20,
-      select: {}
+        where: initialArgs.where || {}, 
+        orderBy: {},
+        skip: 0,
+        take: 20,
+        select: initialArgs.select,
+        include: initialArgs.include
     };
     this.paginationResult = null;
   }
@@ -189,21 +190,37 @@ class ApiFeatures {
 
   async execute(extraArgs = {}) {
 
-      const args = {
-          where: this.prismaArgs.where,
-          orderBy: this.prismaArgs.orderBy,
-          skip: this.prismaArgs.skip,
-          take: this.prismaArgs.take,
-          ...this.extraArgs,
-          ...extraArgs
-      };
+    const args = {
+        where: this.prismaArgs.where,
+        orderBy: this.prismaArgs.orderBy,
+        skip: this.prismaArgs.skip,
+        take: this.prismaArgs.take,
+        ...this.extraArgs,
+        ...extraArgs
+    };
 
-      // cleanResponse — omit updatedAt
-      if (this._cleanResponse) {
-          args.omit = { updatedAt: true };
-      }
+    // add select only if valid and not empty
+    if (
+        this.prismaArgs.select &&
+        Object.keys(this.prismaArgs.select).length > 0
+    ) {
+        args.select = this.prismaArgs.select;
+    }
 
-      return this.model.findMany(args);
+    // add include only if valid and not empty
+    if (
+        this.prismaArgs.include &&
+        Object.keys(this.prismaArgs.include).length > 0
+    ) {
+        args.include = this.prismaArgs.include;
+    }
+
+    // cleanResponse — omit updatedAt
+    if (this._cleanResponse) {
+        args.omit = { updatedAt: true };
+    }
+
+    return this.model.findMany(args);
   }
 }
 
