@@ -173,6 +173,66 @@ class LoggedInDoctorController {
         })
     })
 
+    //@desc get my rating by api features
+    //@route GET /api/v1/loggedin-docs/my-rating
+    //@access Private
+    getMyRatings = asyncHandler(async(req, res, next) => {
+        const doctorId = req.user.id;
+
+        const features = new ApiFeatures(
+            prisma.rating,
+            req.query,
+            "Rating",
+            {
+                where: {
+                    doctorId
+                },
+                select: {
+                    id: true,
+                    rating: true,
+                    review: true,
+                    createdAt: true,
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            phone: true,
+                            email: true
+                        }
+                    }
+                }
+            }
+        )
+            .search()
+            .filter()
+            .sort()
+            .paginate();
+
+        const data = await features.execute();
+
+        await features.calculatePagination();
+
+        const doctor = await prisma.doctor.findUnique({
+            where: {
+                id: doctorId
+            },
+            select: {
+                ratingsAverage: true,
+                ratingQuantity: true
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "My rating fetched successfully",
+            data,
+            averageRate: doctor.ratingsAverage,
+            ratingQuantity: doctor.ratingQuantity,
+            pagination: features.paginationResult
+        });
+    });
+
 }
 
 module.exports = new LoggedInDoctorController();
