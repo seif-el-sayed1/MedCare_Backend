@@ -1,31 +1,28 @@
 const cron = require("node-cron");
 const prisma = require("./db");
+const { sendNotification } = require("../utils/sendNotification");
 
-const workingHoursCron = () => {
+const cronJob = () => {
 
-    // Run every day at 12:00 AM ==> delete doctors after 15 days soft delete
-    cron.schedule("0 0 * * *", async () => {
+    // Run every Saturday at 12:00 AM ==> reset working hours
+    cron.schedule("0 0 * * 5", async () => {
         try {
-
-            const dateLimit = new Date();
-            dateLimit.setDate(dateLimit.getDate() - 15);
-
-            await prisma.doctor.deleteMany({
-                where: {
-                    isDeleted: true,
-                    deletedAt: {
-                        lte: dateLimit
-                    }
-                }
+            await prisma.workingHours.updateMany({
+                where: { weeksOfLeave: 0, isAvailable: false },
+                data: { isAvailable: true }
             });
 
-            console.log("⚠️ Doctors cleanup cron executed successfully".red.bold);
+            await prisma.workingHours.updateMany({
+                where: { weeksOfLeave: { gt: 0 } },
+                data: { isAvailable: false, weeksOfLeave: { decrement: 1 } }
+            });
 
+            console.log("⚠️ Working hours cron executed successfully".red.bold);
         } catch (error) {
-            console.log("Doctors Cron Error:", error);
+            console.log("Working Hours Cron Error:", error);
         }
     });
 
 };
 
-module.exports = workingHoursCron;
+module.exports = cronJob;
