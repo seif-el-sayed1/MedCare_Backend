@@ -152,6 +152,7 @@ model User {
   payments                  Payment[]
   waitingLists              WaitingList[]
   notifications             Notification[]
+  ratings                   Rating[]
 
   @@index([firstName, lastName])
 }
@@ -285,4 +286,20 @@ model Notification {
   scheduleTime DateTime @default(now())
 
   @@index([userId, seen])
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  doctorId  String
+  userId    String
+  review    String?
+  rating    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctor Doctor @relation(fields: [doctorId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([doctorId, userId])
+  @@index([doctorId])
 }
