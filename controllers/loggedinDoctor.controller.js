@@ -71,6 +71,108 @@ class LoggedInDoctorController {
         })
     })
 
+    //@desc Get doctor appointments
+    //@route GET /api/v1/loggedin-docs/appointments
+    //@access Private
+    getMyAppointments = asyncHandler(async (req, res) => {
+        const doctorId = req.user.id;
+
+        const features = new ApiFeatures(
+            prisma.appointment,
+            req.query,
+            "Appointment",
+            {
+                where: {
+                    doctorId
+                },
+                select: {
+                    id: true,
+                    appointmentDate: true,
+                    appointmentStatus: true,
+                    appointmentCode: true,
+                    totalPrice: true,
+                    paidAmount: true,
+                    remainingAmount: true,
+                    isPaid: true,
+                    isFullPaid: true,
+                    paymentType: true,
+                    notes: true,
+                    hasConsultation: true,
+                    consultationDate: true,
+                    createdAt: true,
+
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            phone: true,
+                            email: true
+                        }
+                    }
+                }
+            }
+        )
+            .search()
+            .filter()
+            .sort()
+            .paginate();
+
+        const data = await features.execute();
+
+        await features.calculatePagination();
+
+        res.status(200).json({
+            success: true,
+            message: "Doctor appointments fetched successfully",
+            data,
+            pagination: features.paginationResult
+        });
+    });
+
+    //@desc write appointment diagnosis
+    //@route PATCH /api/v1/loggedin-docs/appointments/:id/diagnosis
+    //@access Private
+    writeDiagnosis = asyncHandler(async(req, res, next) => {
+        const { id } = req.params;
+        const { diagnosis } = req.body;
+
+        if (!diagnosis) {
+            return next(new ApiError("Diagnosis is required", 400));
+        }
+        
+        const appointment = await prisma.appointment.findUnique({
+            where: {
+                id
+            }
+        })
+        if (!appointment) {
+            return next(new ApiError("Appointment not found", 404));
+        }
+
+        if(appointment.doctorId !== req.user.id) {
+            return next(new ApiError("You are not authorized to write diagnosis for this appointment", 403));
+        }
+        if (appointment.appointmentStatus !== "COMPLETED") {
+            return next(new ApiError("Cannot write diagnosis for an appointment that is not completed", 400));
+        }
+
+        const updatedAppointment = await prisma.appointment.update({
+            where: {
+                id
+            },
+            data: {
+                notes: diagnosis
+            }
+        })
+
+        res.status(200).json({
+            success: true,
+            message: "Diagnosis written successfully",
+            data: updatedAppointment
+        })
+    })
+
 }
 
 module.exports = new LoggedInDoctorController();
