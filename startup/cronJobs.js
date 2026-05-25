@@ -89,6 +89,76 @@ const cronJob = () => {
         }
     })
 
+    // Run every hour ==> 2-hour reminder + absent check
+    cron.schedule("0 * * * *", async () => {
+        try {
+            const now = new Date()
+
+            // 2-hour reminder
+            const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
+            const twoHoursLaterEnd = new Date(twoHoursLater.getTime() + 60 * 1000)
+
+            const upcomingAppointments = await prisma.appointment.findMany({
+                where: {
+                    appointmentDate: { gte: twoHoursLater, lte: twoHoursLaterEnd },
+                    appointmentStatus: "CONFIRMED"
+                },
+                include: {
+                    user: { select: { id: true, notificationToken: true } },
+                    doctor: { select: { firstName: true, lastName: true } }
+                }
+            })
+
+            for (const appointment of upcomingAppointments) {
+                if (!appointment.user.notificationToken) continue
+                await sendAndSaveNotification({
+                    token: appointment.user.notificationToken,
+                    title: "Upcoming Appointment ⏰",
+                    body: `Your appointment with Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName} is in 2 hours`,
+                    caseType: "APPOINTMENT_UPCOMING",
+                    info: appointment.appointmentCode,
+                    userId: appointment.user.id
+                })
+            }
+
+            console.log(`⚠️ 2-hour reminders sent for ${upcomingAppointments.length} appointments`.red.bold)
+
+            // Absent check
+            const absentAppointments = await prisma.appointment.findMany({
+                where: {
+                    appointmentDate: { lt: now },
+                    appointmentStatus: "CONFIRMED",
+                    hasConsultation: true
+                },
+                include: {
+                    user: { select: { id: true, notificationToken: true } },
+                    doctor: { select: { firstName: true, lastName: true } }
+                }
+            })
+
+            for (const appointment of absentAppointments) {
+                await prisma.appointment.update({
+                    where: { id: appointment.id },
+                    data: { appointmentStatus: "CANCELLED" }
+                })
+
+                if (!appointment.user.notificationToken) continue
+                await sendAndSaveNotification({
+                    token: appointment.user.notificationToken,
+                    title: "Missed Appointment 😔",
+                    body: `You missed your appointment with Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`,
+                    caseType: "APPOINTMENT_MISSED",
+                    info: appointment.appointmentCode,
+                    userId: appointment.user.id
+                })
+            }
+
+            console.log(`⚠️ Absent appointments checked: ${absentAppointments.length}`.red.bold)
+        } catch (error) {
+            console.log("Hourly Cron Error:", error)
+        }
+    })
+
 };
 
 module.exports = cronJob;
