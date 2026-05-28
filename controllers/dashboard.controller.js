@@ -168,6 +168,52 @@ class DashboardController {
     res.status(200).json({ status: "success", period, data: chartData });
   });
 
+  //@desc     Get monthly revenue chart data for the last 12 months
+  //@route    GET /api/dashboard/revenue-chart
+  //@access   Private (ADMIN, SUPER_ADMIN)
+  getRevenueChart = asyncHandler(async (req, res) => {
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setMonth(startDate.getMonth() - 12);
+
+    const payments = await prisma.payment.findMany({
+      where: {
+        status: "SUCCESS",
+        createdAt: { gte: startDate },
+      },
+      select: {
+        billedAmount: true,
+        createdAt: true,
+        appointment: { select: { paymentType: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const grouped = {};
+    payments.forEach((p) => {
+      const date = new Date(p.createdAt);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+      if (!grouped[key]) {
+        grouped[key] = { total: 0, fullyPaid: 0, partiallyPaid: 0 };
+      }
+      grouped[key].total += p.billedAmount || 0;
+      if (p.appointment?.paymentType === "FULLY_PAID") {
+        grouped[key].fullyPaid += p.billedAmount || 0;
+      } else {
+        grouped[key].partiallyPaid += p.billedAmount || 0;
+      }
+    });
+
+    const chartData = Object.entries(grouped).map(([month, amounts]) => ({
+      month,
+      total: parseFloat(amounts.total.toFixed(2)),
+      fullyPaid: parseFloat(amounts.fullyPaid.toFixed(2)),
+      partiallyPaid: parseFloat(amounts.partiallyPaid.toFixed(2)),
+    }));
+
+    res.status(200).json({ status: "success", data: chartData });
+  });
 
 }
 
