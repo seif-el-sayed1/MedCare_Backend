@@ -159,6 +159,190 @@ const cronJob = () => {
         }
     })
 
+    // Run every 15 minutes ==> remind unpaid appointments & delete after 1 hour & waiting list
+    cron.schedule("*/15 * * * *", async () => {
+        try {
+            const now = new Date()
+            const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000)
+            const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+            const fortyFiveMinAgo = new Date(now.getTime() - 45 * 60 * 1000)
+            const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000)
+            const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000)
+
+            // Cancel expired unpaid appointments & notify waiting list
+            const expiredAppointments = await prisma.appointment.findMany({
+                where: {
+                    appointmentStatus: "PENDING",
+                    isPaid: false,
+                    createdAt: { lte: oneHourAgo },
+                    appointmentDate: { gt: oneHourFromNow }
+                }
+            })
+
+            for (const appointment of expiredAppointments) {
+                await prisma.$transaction(async (tx) => {
+                    await tx.appointment.update({
+                        where: { id: appointment.id },
+                        data: { appointmentStatus: "CANCELLED" }
+                    })
+
+                    const nextInLine = await tx.waitingList.findFirst({
+                        where: {
+                            doctorId: appointment.doctorId,
+                            requestedDate: {
+                                gte: new Date(appointment.appointmentDate.getTime() - 60000),
+                                lte: new Date(appointment.appointmentDate.getTime() + 60000)
+                            },
+                            status: "WAITING"
+                        },
+                        orderBy: { createdAt: "asc" },
+                        include: { user: { select: { id: true, notificationToken: true } } }
+                    })
+
+                    if (!nextInLine) return
+
+                    const newAppointment = await tx.appointment.create({
+                        data: {
+                            doctorId: appointment.doctorId,
+                            userId: nextInLine.userId,
+                            appointmentDate: appointment.appointmentDate,
+                            paymentType: nextInLine.paymentType,
+                            totalPrice: appointment.totalPrice,
+                        }
+                    })
+
+                    await tx.waitingList.update({
+                        where: { id: nextInLine.id },
+                        data: { status: "ACCEPTED" }
+                    })
+
+                    if (nextInLine.user.notificationToken) {
+                        await sendAndSaveNotification({
+                            token: nextInLine.user.notificationToken,
+                            title: "🎉 Slot Confirmed!",
+                            body: `A slot has been assigned to you. Please complete payment within 1 hour to confirm your appointment.`,
+                            caseType: "WAITING_LIST_ACCEPTED",
+                            info: newAppointment.appointmentCode,
+                            userId: nextInLine.user.id
+                        })
+                    }
+                })
+            }
+
+            // Reject waiting list where slot is already confirmed and paid
+            const waitingEntries = await prisma.waitingList.findMany({
+                where: { status: "WAITING" },
+                include: {
+                    user: { select: { id: true, notificationToken: true } },
+                    doctor: { select: { firstName: true, lastName: true } }
+                }
+            })
+
+            for (const waiting of waitingEntries) {
+                const slotTaken = await prisma.appointment.findFirst({
+                    where: {
+                        doctorId: waiting.doctorId,
+                        appointmentDate: {
+                            gte: new Date(waiting.requestedDate.getTime() - 60000),
+                            lte: new Date(waiting.requestedDate.getTime() + 60000)
+                        },
+                        appointmentStatus: "CONFIRMED",
+                        isPaid: true
+                    }
+                })
+
+                if (!slotTaken) continue
+
+                await prisma.waitingList.update({
+                    where: { id: waiting.id },
+                    data: { status: "REJECTED" }
+                })
+
+                if (waiting.user.notificationToken) {
+                    await sendAndSaveNotification({
+                        token: waiting.user.notificationToken,
+                        title: "Slot No Longer Available 😔",
+                        body: `Sorry, the slot you requested with Dr. ${waiting.doctor.firstName} ${waiting.doctor.lastName} has been taken`,
+                        caseType: "WAITING_LIST_REJECTED",
+                        info: waiting.id,
+                        userId: waiting.user.id
+                    })
+                }
+            }
+
+            // Payment reminders
+            const baseWhere = {
+                appointmentStatus: "PENDING",
+                isPaid: false,
+                appointmentDate: { gt: oneHourFromNow }
+            }
+
+            const remind45 = await prisma.appointment.findMany({
+                where: { ...baseWhere, createdAt: { lte: fifteenMinAgo, gt: thirtyMinAgo } },
+                include: {
+                    user: { select: { id: true, notificationToken: true } },
+                    doctor: { select: { firstName: true, lastName: true } }
+                }
+            })
+
+            for (const app of remind45) {
+                if (!app.user.notificationToken) continue
+                await sendAndSaveNotification({
+                    token: app.user.notificationToken,
+                    title: "🔔 45 Minutes Remaining",
+                    body: `You have 45 minutes to complete payment for your appointment with Dr. ${app.doctor.firstName} ${app.doctor.lastName}.`,
+                    caseType: "PAYMENT_REMINDER",
+                    info: app.appointmentCode,
+                    userId: app.user.id
+                })
+            }
+
+            const remind30 = await prisma.appointment.findMany({
+                where: { ...baseWhere, createdAt: { lte: thirtyMinAgo, gt: fortyFiveMinAgo } },
+                include: {
+                    user: { select: { id: true, notificationToken: true } },
+                    doctor: { select: { firstName: true, lastName: true } }
+                }
+            })
+
+            for (const app of remind30) {
+                if (!app.user.notificationToken) continue
+                await sendAndSaveNotification({
+                    token: app.user.notificationToken,
+                    title: "⏳ 30 Minutes Remaining",
+                    body: `Please complete payment for your appointment with Dr. ${app.doctor.firstName} ${app.doctor.lastName}.`,
+                    caseType: "PAYMENT_REMINDER",
+                    info: app.appointmentCode,
+                    userId: app.user.id
+                })
+            }
+
+            const remind15 = await prisma.appointment.findMany({
+                where: { ...baseWhere, createdAt: { lte: fortyFiveMinAgo, gt: oneHourAgo } },
+                include: {
+                    user: { select: { id: true, notificationToken: true } },
+                    doctor: { select: { firstName: true, lastName: true } }
+                }
+            })
+
+            for (const app of remind15) {
+                if (!app.user.notificationToken) continue
+                await sendAndSaveNotification({
+                    token: app.user.notificationToken,
+                    title: "⚠️ 15 Minutes Remaining!",
+                    body: `Your appointment with Dr. ${app.doctor.firstName} ${app.doctor.lastName} will be cancelled if payment is not completed.`,
+                    caseType: "PAYMENT_REMINDER",
+                    info: app.appointmentCode,
+                    userId: app.user.id
+                })
+            }
+
+            console.log(`⚠️ Unpaid appointments cleanup executed`.red.bold)
+        } catch (error) {
+            console.log("Unpaid Appointments Cron Error:", error)
+        }
+    })
+
 };
 
 module.exports = cronJob;
