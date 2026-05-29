@@ -104,6 +104,10 @@ class UserValidator {
         "any.required": "Phone number is required",
       }),
       email: Joi.string().email().optional(),
+      gender: Joi.string()
+        .valid(...GENDER)
+        .optional()
+        .messages({ "any.required": "Gender is required" }),
     });
 
     joiErrorHandler(schema, req);
