@@ -266,7 +266,6 @@ model Appointment {
   user     User      @relation(fields: [userId], references: [id])
   payments Payment[]
 
-  @@unique([doctorId, appointmentDate])
   @@index([doctorId, appointmentDate])
   @@index([userId, appointmentStatus])
   @@index([appointmentDate])
