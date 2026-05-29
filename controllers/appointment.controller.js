@@ -5,6 +5,23 @@ const ApiError = require("../utils/ApiError");
 const ApiFeatures = require("../utils/ApiFeatures");
 const PaymentController = require("./payment.controller");
 const { generateAppointmentPDF } = require("../utils/generateReports");
+const { sendNotification } = require("../utils/sendNotification");
+
+const sendAndSaveNotification = async ({ token, title, body, caseType, info, userId, global = false }) => {
+    sendNotification({ token, title, body, caseType, info, global })
+
+    await prisma.notification.create({
+        data: {
+            title,
+            body,
+            case: caseType,
+            info,
+            global,
+            userId,
+            seen: false
+        }
+    })
+}
 
 class AppointmentController {
     //@desc book an appointment
@@ -441,6 +458,100 @@ class AppointmentController {
         res.status(200).json({
             success: true,
             message: "Appointment deleted successfully"
+        });
+    });
+
+    //@desc cancel appointment by user 
+    //@route PATCH /appointments/:id/cancel
+    //@access Private
+    cancelAppointment = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+
+        const appointment = await prisma.appointment.findUnique({
+            where: { id }
+        });
+
+        if (!appointment) {
+            return next(new ApiError("Appointment not found", 404));
+        }
+
+        if (appointment.appointmentStatus !== "PENDING") {
+            return next(new ApiError("Cannot cancel paid appointment", 400));
+        }
+
+        await prisma.$transaction(async (tx) => {
+
+            // cancel current appointment
+            await tx.appointment.update({
+                where: { id },
+                data: {
+                    appointmentStatus: "CANCELLED"
+                }
+            });
+
+            // get first user in waiting list for same slot
+            const nextInLine = await tx.waitingList.findFirst({
+                where: {
+                    doctorId: appointment.doctorId,
+                    requestedDate: {
+                        gte: new Date(appointment.appointmentDate.getTime() - 60000),
+                        lte: new Date(appointment.appointmentDate.getTime() + 60000)
+                    },
+                    status: "WAITING"
+                },
+                orderBy: {
+                    createdAt: "asc"
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            notificationToken: true
+                        }
+                    }
+                }
+            });
+
+            // لو مفيش حد في ال waiting list
+            if (!nextInLine) return;
+
+            // create new appointment for waiting user
+            const newAppointment = await tx.appointment.create({
+                data: {
+                    doctorId: appointment.doctorId,
+                    userId: nextInLine.userId,
+                    appointmentDate: appointment.appointmentDate,
+                    paymentType: nextInLine.paymentType,
+                    totalPrice: appointment.totalPrice
+                }
+            });
+
+            // update waiting list status
+            await tx.waitingList.update({
+                where: {
+                    id: nextInLine.id
+                },
+                data: {
+                    status: "ACCEPTED"
+                }
+            });
+
+            // send notification
+            // if (nextInLine.user.notificationToken) {
+            // }
+            await sendAndSaveNotification({
+                token: nextInLine.user.notificationToken,
+                title: "🎉 Slot Available!",
+                body: "A slot has been assigned to you. Please complete payment within 1 hour.",
+                caseType: "WAITING_LIST_ACCEPTED",
+                info: newAppointment.appointmentCode,
+                userId: nextInLine.user.id
+            });
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Appointment cancelled successfully"
         });
     });
 
