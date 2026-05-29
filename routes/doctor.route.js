@@ -61,6 +61,7 @@ router.route("/:id/leaves-cancel")
 
 router.route("/:id/available-slots")
     .get(
+        protect,
         DoctorController.getAvailableSlots
     )
 
