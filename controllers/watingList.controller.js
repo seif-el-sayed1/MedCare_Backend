@@ -39,7 +39,6 @@ class WatingListController{
             where: {
                 userId,
                 doctorId,
-                requestedDate: appointmentDate
             }
         })
 
