@@ -165,18 +165,24 @@ class DoctorController {
         const { date } = req.query;
 
         if (!date) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'date is required' 
+            return res.status(400).json({
+                success: false,
+                message: 'Date is required'
             });
         }
 
-        const slots = await getAvailableSlots(id, new Date(date));
+        const slots = await getAvailableSlots(id, new Date(date), req.user.id);
+
+        // Handle validation errors from utility
+        if (slots?.success === false) {
+            return res.status(400).json(slots);
+        }
 
         res.status(200).json({
             success: true,
             data: slots
         });
+
     });
 
 }
