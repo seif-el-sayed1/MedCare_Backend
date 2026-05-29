@@ -36,14 +36,12 @@ class AppointmentController {
             const bookedAppointmentWithAntotherUser = await tx.appointment.findFirst({
                 where: {
                     doctorId,
-                    appointmentDate: {
-                        gte: new Date(appointmentDate.getTime() - 60 * 60 * 1000),
-                        lte: new Date(appointmentDate.getTime() + 60 * 60 * 1000)
-                    },
+                    appointmentDate: appointmentDate, 
                     appointmentStatus: {
                         in: ["PENDING", "CONFIRMED"]
                     }
-                }            });
+                }
+            });
 
             if (bookedAppointmentWithAntotherUser) {
                 throw new ApiError("This appointment slot is already booked, please add to waiting list", 400);
@@ -68,6 +66,28 @@ class AppointmentController {
                 );
             }
 
+            // check if user already has an appointment with this doctor on the same day
+            const existingAppointment = await tx.appointment.findFirst({
+                where: {
+                    userId: req.user.id,
+                    doctorId,
+                    appointmentDate: {
+                        gte: startOfDay,
+                        lte: endOfDay
+                    },
+                    appointmentStatus: {
+                        in: ["PENDING", "CONFIRMED"]
+                    }
+                }
+            });
+
+            if (existingAppointment) {
+                throw new ApiError(
+                    'You already have an active appointment with this doctor today. You cannot join the waiting list.',
+                    400
+                );
+            }
+
             // check conflict within 1 hour
             const conflictingAppointment = await tx.appointment.findFirst({
                 where: {
@@ -85,6 +105,8 @@ class AppointmentController {
                     400
                 );
             }
+
+            
 
             // check doctor exists
             const doctor = await tx.doctor.findUnique({
@@ -109,10 +131,7 @@ class AppointmentController {
 
         res.status(201).json({
             success: true,
-            message: `Your appointment has been created successfully.
-                        Kindly complete your payment within 1 hour to confirm your appointment and receive your booking code and receipt.
-                        If payment is not completed within this time, the appointment will be cancelled automatically.
-                        Thank you for trusting our service.`,
+            message: "Your appointment has been created successfully. Please complete payment within 1 hour to confirm your booking.",
             data: appointment
         });
     });
