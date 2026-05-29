@@ -51,7 +51,7 @@ class UserController {
                 firstName,
                 lastName,
                 phone,
-                age
+                age: parseInt(age)
             }
         });
         res.status(200).json({
