@@ -128,7 +128,6 @@ const cronJob = () => {
                 where: {
                     appointmentDate: { lt: now },
                     appointmentStatus: "CONFIRMED",
-                    hasConsultation: true
                 },
                 include: {
                     user: { select: { id: true, notificationToken: true } },
