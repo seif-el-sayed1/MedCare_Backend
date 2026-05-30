@@ -97,8 +97,6 @@ class LoggedInDoctorController {
                     isFullPaid: true,
                     paymentType: true,
                     notes: true,
-                    hasConsultation: true,
-                    consultationDate: true,
                     createdAt: true,
 
                     user: {
@@ -133,45 +131,75 @@ class LoggedInDoctorController {
     //@desc write appointment diagnosis
     //@route PATCH /api/v1/loggedin-docs/appointments/:id/diagnosis
     //@access Private
-    writeDiagnosis = asyncHandler(async(req, res, next) => {
+    writeDiagnosis = asyncHandler(async (req, res, next) => {
         const { id } = req.params;
         const { diagnosis } = req.body;
 
         if (!diagnosis) {
             return next(new ApiError("Diagnosis is required", 400));
         }
-        
+
         const appointment = await prisma.appointment.findUnique({
-            where: {
-                id
+            where: { id },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        notificationToken: true
+                    }
+                },
+                doctor: {
+                    select: {
+                        firstName: true,
+                        lastName: true
+                    }
+                }
             }
-        })
+        });
+
         if (!appointment) {
             return next(new ApiError("Appointment not found", 404));
         }
 
-        if(appointment.doctorId !== req.user.id) {
+        if (appointment.doctorId !== req.user.id) {
             return next(new ApiError("You are not authorized to write diagnosis for this appointment", 403));
         }
+        
         if (appointment.appointmentStatus !== "COMPLETED") {
             return next(new ApiError("Cannot write diagnosis for an appointment that is not completed", 400));
         }
 
         const updatedAppointment = await prisma.appointment.update({
-            where: {
-                id
-            },
+            where: { id },
             data: {
                 notes: diagnosis
             }
-        })
+        });
+
+        try {
+            const doctorName = `Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`;
+            const title = "New Diagnosis Added";
+            const body = `${doctorName} has written the diagnosis for your appointment.`;
+
+            await sendAndSaveNotification({
+                token: appointment.user.notificationToken, 
+                title: title,
+                body: body,
+                caseType: "DIAGNOSIS", 
+                info: id, 
+                userId: appointment.user.id,
+                global: false
+            });
+        } catch (error) {
+            console.error("🚀 ~ Failed to send notification:", error);
+        }
 
         res.status(200).json({
             success: true,
-            message: "Diagnosis written successfully",
+            message: "Diagnosis written and notification sent successfully",
             data: updatedAppointment
-        })
-    })
+        });
+    });
 
     //@desc get my rating by api features
     //@route GET /api/v1/loggedin-docs/my-rating
