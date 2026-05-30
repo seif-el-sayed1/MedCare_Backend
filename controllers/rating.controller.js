@@ -12,6 +12,18 @@ class RatingController {
     createRating = asyncHandler(async (req, res, next) => {
         const { doctorId } = req.params;
 
+        const hasCompletedAppointment = await prisma.appointment.findFirst({
+            where: {
+                userId: req.user.id,
+                doctorId: doctorId,
+                appointmentStatus: "COMPLETED"
+            }
+        });
+
+        if (!hasCompletedAppointment) {
+            return next(new ApiError("You cannot rate this doctor unless you have at least one completed appointment with them.", 403));
+        }
+
         const existingRating = await prisma.rating.findFirst({
             where: {
                 userId: req.user.id,
@@ -24,7 +36,11 @@ class RatingController {
         }
 
         const rating = await prisma.rating.create({
-            data: { ...req.body }
+            data: { 
+                ...req.body,
+                userId: req.user.id, 
+                doctorId: doctorId  
+            }
         });
 
         await updateDoctorRating(doctorId);
