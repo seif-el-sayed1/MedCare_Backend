@@ -33,19 +33,18 @@ router.route("/:id")
         AppointmentController.deleteAppointment 
     )
 
+router.route("/:id/cancel").patch(
+    protect, 
+    allowedTo(USER),
+    AppointmentController.cancelAppointment
+)
+
 router.route("/:id/status")
     .patch(
         protect, 
         allowedTo(SUPER_ADMIN, ADMIN),
         AppointmentValidator.validateUpdateAppointmentStatus,
         AppointmentController.updateAppointmentStatus
-    )
-
-router.route("/:id/consultation")
-    .patch(
-        protect, 
-        allowedTo(SUPER_ADMIN, ADMIN),
-        AppointmentController.updateAppointmentConsultation
     )
 
 router.route("/:id/payment")

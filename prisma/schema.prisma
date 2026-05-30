@@ -257,8 +257,6 @@ model Appointment {
   isFullPaid        Boolean           @default(false)
   appointmentCode   String?           @unique
   notes             String?
-  hasConsultation   Boolean           @default(true)
-  consultationDate  DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -272,17 +270,17 @@ model Appointment {
 }
 
 model Notification {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   title        String
   body         String?
   case         String?
   info         String?
-  global       Boolean  @default(false)
-  seen         Boolean  @default(false)
+  global       Boolean   @default(false)
+  seen         Boolean   @default(false)
   userId       String
-  user         User     @relation(fields: [userId], references: [id])
-  createdAt    DateTime @default(now())
-  scheduleTime DateTime @default(now())
+  user         User      @relation(fields: [userId], references: [id])
+  createdAt    DateTime  @default(now())
+  scheduleTime DateTime? @default(now())
 
   @@index([userId, seen])
 }
