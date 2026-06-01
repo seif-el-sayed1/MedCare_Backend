@@ -4,7 +4,7 @@ const AppointmentController = require("../controllers/appointment.controller");
 const AppointmentValidator = require("../validators/appointment.validator")
 //middlewares
 const { protect, allowedTo } = require("../middlewares/auth.middleware");
-const { USER, ADMIN, SUPER_ADMIN } = require("../utils/constants");
+const { USER, ADMIN, SUPER_ADMIN, DOCTOR } = require("../utils/constants");
 // Router
 const router = express.Router();
 
@@ -58,7 +58,7 @@ router.route("/:id/payment")
 router.route("/:id/report")
     .get(
         protect, 
-        allowedTo(USER, ADMIN, SUPER_ADMIN),
+        allowedTo(USER, ADMIN, SUPER_ADMIN, DOCTOR),
         AppointmentController.generateReport
     )
 
