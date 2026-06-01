@@ -287,6 +287,79 @@ class DashboardController {
     res.status(200).json({ status: "success", data });
   });
 
+  //@desc     Get payments grouped by status with total amounts
+  //@route    GET /api/dashboard/payments-status-chart
+  //@access   Private (ADMIN, SUPER_ADMIN)
+  getPaymentsStatusChart = asyncHandler(async (req, res) => {
+    const statuses = await prisma.payment.groupBy({
+      by: ["status"],
+      _count: { id: true },
+      _sum: { billedAmount: true },
+    });
+
+    const data = statuses.map((s) => ({
+      status: s.status,
+      count: s._count.id,
+      totalAmount: parseFloat((s._sum.billedAmount || 0).toFixed(2)),
+    }));
+
+    res.status(200).json({ status: "success", data });
+  });
+
+  //@desc     Get new user registrations grouped by period
+  //@route    GET /api/dashboard/new-users-chart?period=daily|weekly|monthly
+  //@access   Private (ADMIN, SUPER_ADMIN)
+  getNewUsersChart = asyncHandler(async (req, res) => {
+    const { period = "monthly" } = req.query;
+    const now = new Date();
+    let startDate;
+
+    if (period === "daily") {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 30);
+    } else if (period === "weekly") {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 84);
+    } else {
+      startDate = new Date(now);
+      startDate.setMonth(startDate.getMonth() - 12);
+    }
+
+    const users = await prisma.user.findMany({
+      where: { createdAt: { gte: startDate } },
+      select: { createdAt: true, gender: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const grouped = {};
+    users.forEach((u) => {
+      const date = new Date(u.createdAt);
+      let key;
+
+      if (period === "daily") {
+        key = date.toISOString().split("T")[0];
+      } else if (period === "weekly") {
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        key = weekStart.toISOString().split("T")[0];
+      } else {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      }
+
+      if (!grouped[key]) grouped[key] = { total: 0, male: 0, female: 0 };
+      grouped[key].total++;
+      if (u.gender === "MALE") grouped[key].male++;
+      if (u.gender === "FEMALE") grouped[key].female++;
+    });
+
+    const chartData = Object.entries(grouped).map(([date, counts]) => ({
+      date,
+      ...counts,
+    }));
+
+    res.status(200).json({ status: "success", period, data: chartData });
+  });
+
 }
 
 module.exports = new DashboardController();
