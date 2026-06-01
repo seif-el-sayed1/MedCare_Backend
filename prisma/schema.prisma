@@ -144,7 +144,7 @@ model User {
   // Auth
   token                     String?
   tokenExpDate              DateTime?
-  notificationToken         String?
+  notificationToken         String?        @default("")
   // Timestamps
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
