@@ -360,6 +360,93 @@ class DashboardController {
     res.status(200).json({ status: "success", period, data: chartData });
   });
 
+  //@desc     Get recent appointments with doctor and user info
+  //@route    GET /api/dashboard/recent-appointments
+  //@access   Private (ADMIN, SUPER_ADMIN)
+  getRecentAppointments = asyncHandler(async (req, res) => {
+    const features = new ApiFeatures(
+      prisma.appointment,
+      req.query,
+      "Appointment"
+    )
+      .filter()
+      .sort()
+      .paginate();
+
+    await features.calculatePagination();
+
+    const appointments = await features.execute({
+      include: {
+        doctor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            specialization: true,
+            profilePicture: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profilePicture: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      status: "success",
+      pagination: features.paginationResult,
+      data: appointments,
+    });
+  });
+
+  //@desc     Get recent payments with user and appointment info
+  //@route    GET /api/dashboard/recent-payments
+  //@access   Private (ADMIN, SUPER_ADMIN)
+  getRecentPayments = asyncHandler(async (req, res) => {
+    const features = new ApiFeatures(prisma.payment, req.query, "Payment")
+      .filter()
+      .sort()
+      .paginate();
+
+    await features.calculatePagination();
+
+    const payments = await features.execute({
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profilePicture: true,
+          },
+        },
+        appointment: {
+          select: {
+            appointmentCode: true,
+            appointmentDate: true,
+            doctor: {
+              select: {
+                firstName: true,
+                lastName: true,
+                specialization: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      status: "success",
+      pagination: features.paginationResult,
+      data: payments,
+    });
+  });
 }
 
 module.exports = new DashboardController();
