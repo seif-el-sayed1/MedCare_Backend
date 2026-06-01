@@ -8,26 +8,49 @@ class LoggedInDoctorController {
     //@desc Update doctor profile
     //@route PATCH /api/v1/loggedin-docs/update
     //@access Private
-    updateDoctorProfile = asyncHandler(async(req, res, next) => {
-        const allowedFields = ["firstName", "lastName", "email", "phone", "bio","experienceYears", "profilePicture"];
+    updateDoctorProfile = asyncHandler(async (req, res, next) => {
+        const allowedFields = [
+            "firstName",
+            "lastName",
+            "email",
+            "phone",
+            "bio",
+            "experienceYears",
+            "profilePicture"
+        ];
 
-        console.log("Request body:", req.body); // Log the request body to see what fields are being sent
         // return error if request body contains fields that are not allowed
         const requestFields = Object.keys(req.body);
-        const isValidOperation = requestFields.every(field => allowedFields.includes(field));
+        const isValidOperation = requestFields.every(field =>
+            allowedFields.includes(field)
+        );
+
         if (!isValidOperation) {
             return next(new ApiError("Invalid fields in request body", 400));
+        }
+
+        // Convert experienceYears to Int
+        if (req.body.experienceYears !== undefined) {
+            const experienceYears = Number(req.body.experienceYears);
+
+            if (Number.isNaN(experienceYears)) {
+                return next(
+                    new ApiError("experienceYears must be a number", 400)
+                );
+            }
+
+            req.body.experienceYears = experienceYears;
         }
 
         const doctor = await prisma.doctor.findUnique({
             where: {
                 id: req.user.id
             }
-        })
+        });
+
         if (!doctor) {
             return next(new ApiError("Doctor not found", 404));
         }
-        
 
         const updatedDoctor = await prisma.doctor.update({
             where: {
@@ -44,14 +67,13 @@ class LoggedInDoctorController {
                 profilePicture: true,
                 experienceYears: true
             }
-        })
+        });
 
         res.status(200).json({
             success: true,
             data: updatedDoctor
-        })
-
-    })
+        });
+    });
 
     //@desc Get doctor profile
     //@route GET /api/v1/loggedin-docs/me
