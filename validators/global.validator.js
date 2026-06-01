@@ -22,7 +22,7 @@ class GlobalValidator {
         "string.min": "Password must be at least 8 characters long",
         "any.required": "Password is required"
       }),
-      notificationToken: Joi.string().optional()
+      notificationToken: Joi.string().optional().default(""),
     }).messages({
       "any.required": "Email is required",
       "string.email": "Invalid Email Address"
