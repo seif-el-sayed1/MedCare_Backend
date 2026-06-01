@@ -23,7 +23,7 @@ router.route("/")
 router.route("/:id")
     .delete(
         protect, 
-        allowedTo(SUPER_ADMIN, ADMIN),
+        allowedTo(SUPER_ADMIN, ADMIN, USER),
         WatingListController.removeFromWaitingList
     )
 
