@@ -215,6 +215,78 @@ class DashboardController {
     res.status(200).json({ status: "success", data: chartData });
   });
 
+  //@desc     Get top doctors by appointments count or rating
+  //@route    GET /api/dashboard/top-doctors?limit=5&orderBy=appointments|rating
+  //@access   Private (ADMIN, SUPER_ADMIN)
+  getTopDoctors = asyncHandler(async (req, res) => {
+    const { limit = 5, orderBy = "appointments" } = req.query;
+    const take = Math.min(Number(limit), 20);
+
+    const doctors = await prisma.doctor.findMany({
+      where: { isDeleted: false },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        profilePicture: true,
+        specialization: true,
+        ratingsAverage: true,
+        ratingQuantity: true,
+        consultationPrice: true,
+        _count: { select: { appointments: true } },
+      },
+      orderBy:
+        orderBy === "rating"
+          ? { ratingsAverage: "desc" }
+          : { appointments: { _count: "desc" } },
+      take,
+    });
+
+    const data = doctors.map((doc) => ({
+      id: doc.id,
+      name: `${doc.firstName} ${doc.lastName}`,
+      profilePicture: doc.profilePicture,
+      specialization: doc.specialization,
+      ratingsAverage: doc.ratingsAverage,
+      ratingQuantity: doc.ratingQuantity,
+      consultationPrice: doc.consultationPrice,
+      appointmentsCount: doc._count.appointments,
+    }));
+
+    res.status(200).json({ status: "success", data });
+  });
+
+  //@desc     Get appointments count grouped by doctor specialization
+  //@route    GET /api/dashboard/specializations-chart
+  //@access   Private (ADMIN, SUPER_ADMIN)
+  getSpecializationsChart = asyncHandler(async (req, res) => {
+    const appointments = await prisma.appointment.groupBy({
+      by: ["doctorId"],
+      _count: { id: true },
+    });
+
+    const doctorIds = appointments.map((a) => a.doctorId);
+    const doctors = await prisma.doctor.findMany({
+      where: { id: { in: doctorIds } },
+      select: { id: true, specialization: true },
+    });
+
+    const doctorMap = {};
+    doctors.forEach((d) => (doctorMap[d.id] = d.specialization));
+
+    const specMap = {};
+    appointments.forEach((a) => {
+      const spec = doctorMap[a.doctorId] || "UNKNOWN";
+      specMap[spec] = (specMap[spec] || 0) + a._count.id;
+    });
+
+    const data = Object.entries(specMap)
+      .map(([specialization, count]) => ({ specialization, count }))
+      .sort((a, b) => b.count - a.count);
+
+    res.status(200).json({ status: "success", data });
+  });
+
 }
 
 module.exports = new DashboardController();
