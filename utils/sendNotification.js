@@ -19,23 +19,21 @@ const sendNotification = ({
       priority: "HIGH"
     },
     notification: {
-      title,
-      body
+      title: String(title || ""),
+      body: String(body || "")
     },
     data: {
-      info,
-      case: caseType
+      info: JSON.stringify(info || {}),
+      case: String(caseType || "")
     },
     apns: {
       payload: {
         aps: {
           alert: {
-            title,
-            body,
-            icon
+            title: String(title || ""),
+            body: String(body || "")
           },
           badge: 1,
-          "mutable-content": 1,
           sound: "default"
         }
       },
