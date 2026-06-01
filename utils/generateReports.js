@@ -89,26 +89,39 @@ const generateAppointmentPDF = (appointment) => {
         infoRow("Total Price: ", `${appointment.totalPrice} EGP`)
         infoRow("Paid Amount: ", `${appointment.paidAmount} EGP`)
         infoRow("Remaining: ", `${appointment.remainingAmount} EGP`)
-        doc.moveDown(0.8)
+        doc.moveDown(0.5)
 
-        // Divider
-        doc.moveTo(35, doc.y).lineTo(pageWidth - 35, doc.y).lineWidth(1).stroke(BLUE)
+        // Diagnosis & Notes
+        y = doc.y
+        sectionTitle("Diagnosis & Notes", y)
+        doc.moveDown(0.8)
+        
+        if (appointment.notes && appointment.notes.trim() !== "") {
+            doc.fontSize(10).font("Helvetica").fillColor(DARK)
+                .text(appointment.notes, 45, doc.y, { width: pageWidth - 90, align: "left", lineGap: 4 })
+        } else {
+            doc.fontSize(10).font("Helvetica-Oblique").fillColor(GRAY)
+                .text("No diagnosis or medical notes recorded for this appointment yet.", 45, doc.y, { width: pageWidth - 90 })
+        }
         doc.moveDown(1.5)
 
-        // Doctor Signature + Consultation Date
-        const signY = doc.y
+        y = doc.y
+        sectionTitle("Doctor Note", y)
+        doc.moveDown(1.2)
+        doc.fontSize(10).font("Helvetica").fillColor(GRAY)
+            .text("........................................................................................................................................................................", 45, doc.y, { width: pageWidth - 90, lineGap: 12 })
+            .text("........................................................................................................................................................................", 45, doc.y + 15, { width: pageWidth - 90, lineGap: 12 })
+
+
+        const bottomY = pageHeight - 100;
+
+        doc.moveTo(35, bottomY).lineTo(pageWidth - 35, bottomY).lineWidth(1).stroke(BLUE)
 
         // Doctor Signature
         doc.fontSize(10).font("Helvetica-Bold").fillColor(DARK)
-            .text("Doctor Signature: ", 45, signY)
+            .text("Doctor Signature: ", 45, bottomY + 20)
         doc.fontSize(10).font("Helvetica").fillColor(GRAY)
-            .text("________________", 45, signY + 16)
-
-        // Consultation Date
-        doc.fontSize(10).font("Helvetica-Bold").fillColor(DARK)
-            .text("Consultation Date: ", pageWidth / 2, signY)
-        doc.fontSize(10).font("Helvetica").fillColor(GRAY)
-            .text("________________", pageWidth / 2, signY + 16)
+            .text("________________", 45, bottomY + 36)
 
         doc.end()
     })
