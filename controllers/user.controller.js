@@ -105,6 +105,7 @@ class UserController {
             include: {
                 doctor: {
                     select: {
+                        id: true,
                         firstName: true,
                         lastName: true,
                         specialization: true,
