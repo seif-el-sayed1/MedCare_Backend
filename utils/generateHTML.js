@@ -2,7 +2,7 @@ const generateHTML = ({
     link = process.env.FRONTEND_URL,
     logo = process.env.LOGO_URL,
     backgroundColor = "#F4F6F8",
-    primaryColor = "#0A7F3F",
+    primaryColor = "#0F766E",        // Teal - يتناسب مع ستايل التطبيق
     secondaryColor = "#ffffff",
     emailTitle,
     emailSubTitle,
@@ -15,7 +15,7 @@ const generateHTML = ({
 }) => {
     const html = `
     <!DOCTYPE html>
-    <html lang="en">
+    <html lang="ar" dir="rtl">
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -26,7 +26,7 @@ const generateHTML = ({
           margin: 0;
           padding: 0;
           background: ${backgroundColor};
-          font-family: 'Arial', sans-serif;
+          font-family: 'Arial', 'Tahoma', sans-serif;
         }
 
         .container {
@@ -34,38 +34,29 @@ const generateHTML = ({
           max-width: 600px;
           margin: 30px auto;
           background: ${secondaryColor};
-          border-radius: 10px;
+          border-radius: 16px;
           overflow: hidden;
-          box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-        }
-
-        .logo {
-          text-align: center;
-          padding: 30px 0;
-          background: ${secondaryColor};
-        }
-
-        .logo img {
-          width: 180px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
 
         .header {
-          padding: 30px 30px 10px;
-          border-top: 4px solid ${primaryColor};
+          background: ${primaryColor};
+          padding: 40px 30px 25px;
+          text-align: center;
         }
 
         .header h1 {
           margin: 0;
-          font-size: 26px;
-          color: #222;
+          color: white;
+          font-size: 28px;
           font-weight: bold;
         }
 
         .content {
-          padding: 20px 30px;
-          color: #444;
+          padding: 35px 30px;
+          color: #374151;
           font-size: 16px;
-          line-height: 26px;
+          line-height: 28px;
         }
 
         .button-wrapper {
@@ -76,24 +67,24 @@ const generateHTML = ({
         .button {
           background: ${primaryColor};
           color: #fff !important;
-          padding: 14px 28px;
-          font-size: 16px;
-          border-radius: 8px;
+          padding: 16px 36px;
+          font-size: 17px;
+          border-radius: 12px;
           text-decoration: none;
           display: inline-block;
           font-weight: bold;
-          transition: 0.2s;
+          box-shadow: 0 4px 15px rgba(15, 118, 110, 0.3);
         }
 
         .button:hover {
-          opacity: 0.9;
+          opacity: 0.95;
         }
 
         .below {
-          padding: 0 30px 25px;
-          font-size: 15px;
-          line-height: 22px;
-          color: #444;
+          padding: 0 30px 30px;
+          font-size: 15.5px;
+          line-height: 26px;
+          color: #4B5563;
         }
 
         .below a {
@@ -102,39 +93,42 @@ const generateHTML = ({
           text-decoration: none;
         }
 
+        .thank-you {
+          padding: 0 30px 30px;
+          color: #6B7280;
+          font-size: 15px;
+          border-top: 1px solid #E5E7EB;
+        }
+
         .footer {
           text-align: center;
-          padding: 20px 30px;
+          padding: 25px 30px;
+          background: #F9FAFB;
           font-size: 13px;
-          color: #777;
+          color: #9CA3AF;
         }
 
         .footer a {
           color: ${primaryColor};
           text-decoration: none;
         }
-
       </style>
     </head>
 
     <body>
-
       <div class="container">
 
-        <div class="logo">
-          <a href="${link}" target="_blank">
-            <img src="${logo}" alt="Logo">
-          </a>
-        </div>
-
+        <!-- Header -->
         <div class="header">
           <h1>${emailTitle}</h1>
         </div>
 
+        <!-- Content -->
         <div class="content">
           <p>${emailSubTitle}</p>
         </div>
 
+        <!-- Button -->
         ${
           btnText || btnLink
             ? `
@@ -148,6 +142,7 @@ const generateHTML = ({
             : ""
         }
 
+        <!-- Below Text -->
         ${
           belowText || belowLink
             ? `
@@ -162,10 +157,12 @@ const generateHTML = ({
             : ""
         }
 
-        <div class="content" style="border-top:1px solid #eee; padding-top:20px;">
-          <p>Thank you,<br>${process.env.APP_NAME}</p>
+        <!-- Thank You -->
+        <div class="thank-you">
+          <p>Thank you<br><strong>${process.env.APP_NAME || ''}</strong></p>
         </div>
 
+        <!-- Footer -->
         <div class="footer">
           <p>${footerNote || ""}</p>
           ${
@@ -176,7 +173,6 @@ const generateHTML = ({
         </div>
 
       </div>
-
     </body>
     </html>
     `;
