@@ -1,6 +1,6 @@
 const asycnHandler = require("express-async-handler");
 const prisma = require("../startup/db");
-const ApiFeatures = require("../utils/apiFeatures");
+const ApiFeatures = require("../utils/ApiFeatures");
 
 class UserController {
     // @desc    Get my profile
