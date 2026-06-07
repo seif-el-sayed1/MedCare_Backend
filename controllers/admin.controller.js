@@ -5,7 +5,7 @@ const { translate} = require("../utils/translation.js");
 const prisma = require("../startup/db.js")
 const Auth = require("../utils/auth.js")
 const { ADMIN } = require("../utils/constants.js")
-const ApiFeatures = require("../utils/apiFeatures.js");
+const ApiFeatures = require("../utils/ApiFeatures.js");
 
 class AdminController {
 
